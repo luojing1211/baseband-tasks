@@ -7,12 +7,14 @@ from astropy.time import Time
 
 
 
-__all__ = ['Writer', 'PsrfitsWriter']
+__all__ = ['HDUwriter']
 
 
-class Writer:
-    pass
 
 
-class PsrfitsWriter(Writer):
-    pass
+class HDUwriter:
+    def __init__(self, HDU_translator):
+        self.translator = HDU_translator
+        self.hdu_type = self.translator.client_name
+
+    def 

@@ -14,9 +14,11 @@ class TranslatorBase:
     target : str
         The name of the target format.
     """
-    def __init__(self, format1, format2):
-        self.format1 = format1
-        self.format2 = format2
+    def __init__(self, file_type, source_name, client_name, mode):
+        self.file_type = file_type
+        self.source_name = source_name
+        self.client_name = client_name
+        self.mode = mode
 
     def verify(self, input_object):
         """ This function checks if the input file object matches the translator

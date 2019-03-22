@@ -20,10 +20,67 @@ class HeaderHDU(TranslatorBase):
     """
     _properties = ('start_time', 'observatory', 'filename')
 
-    def __init__(self, header_hdu):
+    _defaults = [('HDRVER', '6.1 ' 'Header version')
+                 ('FITSTYPE', 'PSRFITS ', 'FITS definition for pulsar data'
+                  'files'),
+                 ('DATE', ' ', 'File creation UTC date (YYYY-MM-DDThh:mm:ss)'),
+                 ('OBSERVER', ' ', 'Observer name(s)'),
+                 ('PROJID', ' ', 'Project name'),
+                 ('TELESCOP', ' ', 'Telescope name'),
+                 ('ANT_X', 0  '[m] Antenna ITRF X-coordinate (D)'),
+                 ('ANT_Y', 0  '[m] Antenna ITRF Y-coordinate (D)'),
+                 ('ANT_Z', 0  '[m] Antenna ITRF Z-coordinate (D)'),
+                 ('FRONTEND', ' ', 'Receiver ID'),
+                 ('IBEAM', ' ', 'Beam ID for multibeam systems'),
+                 ('NRCVR', 0, 'Number of receiver polarisation channels'),
+                 ('FD_POLN', ' ', 'LIN or CIRC'),
+                 ('FD_HAND', 0, '+/- 1. +1 is LIN:A=X,B=Y, CIRC:A=L,B=R (I)'),
+                 ('FD_SANG', 0, '[deg] FA of E vect for equal sig in A&B (E)'),
+                 ('FD_XYPH', 0, '[deg] Phase of A* B for injected cal (E)'),
+                 ('BACKEND', ' ', 'Backend ID'),
+                 ('BECONFIG', ' ', 'Backend configuration file name'),
+                 ('BE_PHASE', 0, '0/+1/-1 BE cross-phase:0 unknown,+/-1 std/rev'),
+                 ('BE_DCC' , 0, '0/1 BE downconversion conjugation corrected'),
+                 ('BE_DELAY', 0, '[s] Backend propn delay from digitiser input'),
+                 ('TCYCLE' , 0, '[s] On-line cycle time (D)'),
+                 ('OBS_MODE', ' ', '(PSR, CAL, SEARCH)'),
+                 ('DATE-OBS', ' ', 'UTC date of observation (YYYY-MM-DDThh:mm:ss)'),
+                 ('OBSFREQ', 0, '[MHz] Centre frequency for observation'),
+                 ('OBSBW', 0, '[MHz] Bandwidth for observation'),
+                 ('OBSNCHAN', 0, 'Number of frequency channels (original)'),
+                 ('CHAN_DM', 0, '[cm-3 pc] DM used for on-line dedispersion'),
+                 ('PNT_ID', ' ', 'Name or ID for pointing ctr (multibeam feeds)'),
+                 ('SRC_NAME', ' ', 'Source or scan ID'),
+                 ('COORD_MD', ' ', 'Coordinate mode (J2000, GALACTIC, ECLIPTIC)'),
+                 ('EQUINOX', 0, 'Equinox of coords (e.g. 2000.0)'),
+                 ('RA', ' ', 'Right ascension (hh:mm:ss.ssss)'),
+                 ('DEC', ' ', 'Declination (-dd:mm:ss.sss)'),
+                 ('BMAJ', 0, '[deg] Beam major axis length'),
+                 ('BMIN', 0, '[deg] Beam minor axis length'),
+                 ('BPA' , 0, '[deg] Beam position angle'),
+                 ('STT_CRD1', ' ', 'Start coord 1 (hh:mm:ss.sss or ddd.ddd)'),
+                 ('STT_CRD2', ' ', 'Start coord 2 (-dd:mm:ss.sss or -dd.ddd)'),
+                 ('TRK_MODE', ' ', 'Track mode (TRACK, SCANGC, SCANLAT)'),
+                 ('STP_CRD1', ' ', 'Stop coord 1 (hh:mm:ss.sss or ddd.ddd)'),
+                 ('STP_CRD2', ' ', 'Stop coord 2 (-dd:mm:ss.sss or -dd.ddd)'),
+                 ('SCANLEN' ,0, '[s] Requested scan length (E)'),
+                 ('FD_MODE', ' ', 'Feed track mode - FA, CPA, SPA, TPA'),
+                 ('FA_REQ', 0, '[deg] Feed/Posn angle requested (E)'),
+                 ('CAL_MODE', ' ', 'Cal mode (OFF, SYNC, EXT1, EXT2)'),
+                 ('CAL_FREQ', 0, '[Hz] Cal modulation frequency (E)'),
+                 ('CAL_DCYC', 0, 'Cal duty cycle (E)'),
+                 ('CAL_PHS', 0, 'Cal phase (wrt start time) (E)'),
+                 ('CAL_NPHS', 0, 'Number of states in cal pulse (I)'),
+                 ('STT_IMJD', 0, 'Start MJD (UTC days) (J - long integer)'),
+                 ('STT_SMJD', 0, '[s] Start time (sec past UTC 00h) (J)'),
+                 ('STT_OFFS', 0, '[s] Start time offset (D)'),
+                 ('STT_LST', 0, '[s] Start LST (D)')]
+
+    def __init__(self, header_hdu, mode):
         self.header_hdu = header_hdu
         self.verify(self.header_hdu)
-        super(HeaderHDU, self).__init__('baseband', 'psrfits_header')
+        super(HeaderHDU, self).__init__('psrfits', 'baseband',
+                                        'psrfits_header', mode)
 
     def verify(self, input_hdu):
         try:
@@ -83,24 +140,14 @@ class SubintHDU(TranslatorBase):
 
     _properties = ('start_time', 'sample_rate', 'shape', 'pol', 'frequency')
 
-    _defaults = [('BACKEND', 'GUPPI'),
-                 ('BLOCSIZE', 0),
-                 ('STT_OFFS', 0),
-                 ('PKTIDX', 0),
-                 ('OVERLAP', 0),
-                 ('SRC_NAME', 'unset'),
-                 ('TELESCOP', 'unset'),
-                 ('PKTFMT', '1SFA'),
-                 ('PKTSIZE', 8192),
-                 ('NBITS', 8),
-                 ('NPOL', 1),
-                 ('OBSNCHAN', 1)]
 
-    def __init__(self, header_hdu, subint_hdu):
+    _buffer = [('OFFS_SUB', 0),]
+
+    def __init__(self, header_hdu, subint_hdu, mode):
         self.header_hdu = HeaderTranslator("file_header", header_hdu)
         self.data_hdu = data_hdu
         self.data_header = self.data_hdu.read_header()
-        super(SubintHDU, self).__init__('baseband', 'SUBINT')
+        super(SubintHDU, self).__init__('psrfits','baseband', 'SUBINT', mode)
         self.verify(self.data_hdu)
 
     def verify(self, input_hdu):
@@ -143,22 +190,35 @@ class SubintHDU(TranslatorBase):
     def pol(self, val):
         self.data_header['POL_TYPE'] = val
 
+
+    @property
+    def samples_per_frame(self):
+        return self.data_header['NSBLK']
+
+    @samples_per_frame.setter
+    def samples_per_frame(self, val):
+        self.data_header['NSBLK'] = val
+
     @property
     def start_times(self):
         # NOTE should we get the start time for each raw, in case the time gaps
         # in between the rows
-        file_start = self.header_hdu.get_start_time()
-        subint_times = u.Quantity(self.header_hdu.read_column(col='OFFS_SUB'),
+        file_start = self.header_hdu.start_time
+        subint_times = u.Quantity(self.data_hdu.read_column(col='OFFS_SUB'),
                                   u.s, copy=False)
         samples_per_row = self.data_header['NSBLK']
-        sample_time = self.data_header['TBIN']
-        start_time = (file_start + subint_times -
-                      samples_per_row / 2 * sample_time)
+        sample_time = 1.0 / self.sample_rate
+        start_time = (file_start + subint_times[0] -
+                      self.samples_per_frame / 2 * sample_time)
         return start_time
 
     @start_time.setter
-    def start_time(self):
-        pass
+    def start_time(self, time):
+        # NOTE this sets the start time of the HDU, not the file start time.
+        dt = (time - self.header_hdu.start_time.to(u.s)
+        center_off = dt + 1.0 / self.sample_rate * self.samples_per_frame / 2
+        self._buffer['OFFS_SUB'] = center_off
+
 
     def get_freqs(self):
         # Those are the frequency for all the rows.
