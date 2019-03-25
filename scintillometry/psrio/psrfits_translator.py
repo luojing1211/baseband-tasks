@@ -6,6 +6,8 @@ from .translator import TranslatorBase
 from collections import namedtuple
 import astropy.units as u
 from astropy.time import Time
+from astropy.coordinates import SkyCoord
+from astropy.coordinates import Angle, Latitude, Longitude
 from astropy.io import fits
 import numpy as np
 
@@ -21,7 +23,7 @@ class PsrfitsHearderHDU(fits.PrimaryHDU):
     ---------
     header_hdu : `Pdat.header_hdu`
     """
-    _properties = ('start_time', 'observatory', 'frequency')
+    _properties = ('start_time', 'observatory', 'frequency', 'source')
 
     _defaults = [('HDRVER', '6.1', 'Header version'),
                  ('FITSTYPE', 'PSRFITS', 'FITS definition for pulsar data'
@@ -159,6 +161,24 @@ class PsrfitsHearderHDU(fits.PrimaryHDU):
         self.header['OBSBW'] = (frequency[-1] - frequency[0]).value
         self.header['OBSFREQ'] = frequency[int(n_chan / 2)].value
 
+    @property
+    def ra(self):
+        return Angle(self.header['RA'], unit=u.hourangle)
+
+    @ra.setter
+    def ra(self, val):
+        val = Angle(val, unit=u.hourangle)
+        self.header['RA'] = val.to_string(sep=':')
+
+    @property
+    def dec(self):
+        return Angle(self.header['DEC'], unit=u.deg)
+
+    @ra.setter
+    def dec(self, val):
+        val = Angle(val, unit=u.deg)
+        self.header['DEC'] = val.to_string(sep=':')
+
 
 class SubintHDU(fits.BinTableHDU):
     """SubintHDU class provides the translator functions between baseband-style
@@ -184,21 +204,46 @@ class SubintHDU(fits.BinTableHDU):
                  ('NAXIS2', 0, 'Number of rows in table (NSUBINT)'),
                  ('PCOUNT', 0, 'size of special data area'),
                  ('GCOUNT', 1, 'one data group (required keyword)'),
-                 ('TFIELDS', 18, 'Number of fields per row')]
+                 ('TFIELDS', 18, 'Number of fields per row'),
+                 ('EPOCHS', 'STT_MJD', 'Epoch convention (VALID, MIDTIME, '
+                                       'STT_MJD)'),
+                 ('INT_TYPE', ' ', 'Time axis (TIME, BINPHSPERI, BINLNGASC, etc'),
+                 ('INT_UNIT', ' ', 'Unit of time axis (SEC, PHS (0-1), DEG)'),
+                 ('SCALE', ' ', 'Intensity units (FluxDen/RefFlux/Jansky)'),
+                 ('POL_TYPE', ' ', 'Polarisation identifier (e.g., AABBCRCI, AA+BB)'),
+                 ('NPOL', 0, 'Nr of polarisations'),
+                 ('TBIN', 0, '[s] Time per bin or sample'),
+                 ('NBIN', 0, 'Nr of bins (PSR/CAL mode; else 1)'),
+                 ('NBIN_PRD', 0, 'Nr of bins/pulse period (for gated data)'),
+                 ('PHS_OFFS', 0, 'Phase offset of bin 0 for gated data'),
+                 ('NBITS', 0, 'Nr of bits/datum (SEARCH mode data, else 1)'),
+                 ('ZERO_OFF', 0, 'Zero offset for SEARCH-mode data'),
+                 ('SIGNINT', 0, '1 for signed ints in SEARCH-mode data, else 0'),
+                 ('NSUBOFFS', 0, 'Subint offset (Contiguous SEARCH-mode files)'),
+                 ('NCHAN', 0, 'Number of channels/sub-bands in this file'),
+                 ('CHAN_BW', 0, '[MHz] Channel/sub-band width'),
+                 ('DM', 0, '[cm-3 pc] DM for post-detection dedisperion'),
+                 ('RM', 0, '[rad m-2] RM for post-detection deFaraday'),
+                 ('NCHNOFFS', 0, 'Channel/sub-band offset for split files'),
+                 ('NSBLK', 0, 'Samples/row (SEARCH mode, else 1)'),
+                 ('NSTOT', 0, 'Total number of samples (SEARCH mode, else 1)')]
 
 
     def __init__(self, header_hdu, subint_hdu=None):
         self.header_hdu = header_hdu
         if subint_hdu is None:
-            super(SubintHDU, self).__init__()
+            super(SubintHDU, self).__init__(name='SUBINT')
             self._init_empty()
         else:
             super(SubintHDU, self).__init__(header=subint_hdu.header,
-                                            data=subint_hdu.data)
+                                            data=subint_hdu.data, name='SUBINT')
 
     def _init_empty(self):
         for k in self._defaults:
             self.header.set(k[0], k[1], k[2])
+
+    def _make_columns(self):
+
     #     self.verify(self)
     #
     # def verify(self):
