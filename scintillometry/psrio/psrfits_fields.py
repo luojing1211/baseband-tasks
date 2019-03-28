@@ -1,4 +1,6 @@
-"""This file contains the PSRFITS template fields.
+"""This file contains the PSRFITS template fields. Those fields are defined in
+the page :
+https://www.atnf.csiro.au/research/pulsar/psrfits_definition/PsrfitsDocumentation.html
 """
 
 main_header = [('HDRVER', '6.1', 'Header version'),
@@ -57,35 +59,134 @@ main_header = [('HDRVER', '6.1', 'Header version'),
                ('STT_OFFS', 0.0, '[s] Start time offset (D)'),
                ('STT_LST', 0, '[s] Start LST (D)')]
 
-subint_header = [('BITPIX', 8, 'N/A'),
-                 ('NAXIS', 2, '2-dimensional binary table'),
-                 ('NAXIS1', 0, 'width of table in bytes'),
-                 ('NAXIS2', 0, 'Number of rows in table (NSUBINT)'),
-                 ('PCOUNT', 0, 'size of special data area'),
-                 ('GCOUNT', 1, 'one data group (required keyword)'),
-                 #('TFIELDS', 0, 'Number of fields per row'),
-                 ('EPOCHS', 'STT_MJD', 'Epoch convention (VALID, MIDTIME, '
-                                       'STT_MJD)'),
-                 ('INT_TYPE', ' ', 'Time axis (TIME, BINPHSPERI, BINLNGASC, etc'),
-                 ('INT_UNIT', ' ', 'Unit of time axis (SEC, PHS (0-1), DEG)'),
-                 ('SCALE', ' ', 'Intensity units (FluxDen/RefFlux/Jansky)'),
-                 ('POL_TYPE', ' ', 'Polarisation identifier (e.g., AABBCRCI, AA+BB)'),
-                 ('NPOL', 0, 'Nr of polarisations'),
-                 ('TBIN', 0, '[s] Time per bin or sample'),
-                 ('NBIN', 0, 'Nr of bins (PSR/CAL mode; else 1)'),
-                 ('NBIN_PRD', 0, 'Nr of bins/pulse period (for gated data)'),
-                 ('PHS_OFFS', 0, 'Phase offset of bin 0 for gated data'),
-                 ('NBITS', 0, 'Nr of bits/datum (SEARCH mode data, else 1)'),
-                 ('ZERO_OFF', 0, 'Zero offset for SEARCH-mode data'),
-                 ('SIGNINT', 0, '1 for signed ints in SEARCH-mode data, else 0'),
-                 ('NSUBOFFS', 0, 'Subint offset (Contiguous SEARCH-mode files)'),
-                 ('NCHAN', 0, 'Number of channels/sub-bands in this file'),
-                 ('CHAN_BW', 0, '[MHz] Channel/sub-band width'),
-                 ('DM', 0, '[cm-3 pc] DM for post-detection dedisperion'),
-                 ('RM', 0, '[rad m-2] RM for post-detection deFaraday'),
-                 ('NCHNOFFS', 0, 'Channel/sub-band offset for split files'),
-                 ('NSBLK', 0, 'Samples/row (SEARCH mode, else 1)'),
-                 ('NSTOT', 0, 'Total number of samples (SEARCH mode, else 1)')]
+subint_header = {'BITPIX': {'value': 8,
+                            'comment': 'N/A',
+                            'description': ""},
+                 'NAXIS': {'value': 2,
+                           'comment': '2-dimensional binary table',
+                           'description': ""},
+                 'NAXIS1': {'value': 0,
+                            'comment': 'width of table in bytes',
+                            'description': ""},
+                 'NAXIS2': {'value': 0,
+                            'comment': 'Number of rows in table (NSUBINT)',
+                            'description': ""},
+                 'PCOUNT': {'value': 0,
+                            'comment': 'size of special data area',
+                            'description': ""},
+                 'GCOUNT': {'value': 1,
+                            'comment': 'one data group (required keyword)',
+                            'description': ""},
+                 #'TFIELDS', 0, 'Number of fields per row', 'description': ""},
+                 'EPOCHS': {'value': 'STT_MJD',
+                            'comment': 'Epoch convention (VALID, MIDTIME,'
+                                       ' STT_MJD)',
+                            'description': "Different instruments use different"
+                                           " conventions for folding a time"
+                                           " series into a pulse profile and"
+                                           " for recording the epoch of a"
+                                           " sub-integration. This parameter"
+                                           " describes one of the following"
+                                           " three conventions; if it is not"
+                                           " specified in the PSRFITS file,"
+                                           " then EPOCHS=STT_MJD is assumed.\n"
+                                           "\t*If EPOCHS=VALID, then\n"
+                                           "\t\t1.the rising edge of phase"
+                                           " bin zero corresponds to an integer"
+                                           " turn of the pulsar as predicted by"
+                                           " the approximation to the timing"
+                                           " model used during folding (e.g."
+                                           " tempo2 predictor); and\n"
+                                           "\t\t2.the epoch recorded for"
+                                           " each sub-integration (typically"
+                                           " near the mid-time of the"
+                                           " integration) also corresponds to"
+                                           " an integer turn of the pulsar.\n"
+                                           "\t*If EPOCHS=MIDTIME, then\n"
+                                           "\t\t1.the rising edge of phase bin"
+                                           " zero corresponds to an integer"
+                                           " turn of the pulsar as predicted by"
+                                           " the approximation to the timing"
+                                           " model used during folding (e.g."
+                                           " tempo2 predictor); and\n"
+                                           "\t\t2.the epoch recorded for each"
+                                           " sub-integration has no relation to"
+                                           " pulse phase.\n"
+                                           "\t*If EPOCHS=STT_MJD, then\n"
+                                           "\t\t1.the rising edge of phase bin"
+                                           " zero corresponds to the phase of"
+                                           " the pulsar as predicted by the"
+                                           " approximation to the timing model"
+                                           " used during folding at the epoch"
+                                           " defined by the STT_IMJD, STT_SMJD,"
+                                           " and STT_OFFS parameters; this is"
+                                           " typically the case when the first"
+                                           " sample in the time series is"
+                                           " folded into the first phase bin."
+                                           " Furthermore,\n\t\t2.the epoch"
+                                           " recorded for each sub-integration"
+                                           " has no relation to pulse phase."},
+                 'INT_TYPE': {'value': ' ',
+                              'comment': 'Time axis (TIME, BINPHSPERI, BINLNGASC, etc',
+                              'description': ""},
+                 'INT_UNIT': {'value': ' ',
+                              'comment': 'Unit of time axis (SEC, PHS (0-1), DEG)',
+                              'description': ""},
+                 'SCALE': {'value': ' ',
+                           'comment': 'Intensity units (FluxDen/RefFlux/Jansky)',
+                           'description': ""},
+                 'POL_TYPE': {'value': ' ',
+                              'comment': 'Polarisation identifier (e.g., AABBCRCI, AA+BB)',
+                              'description': ""},
+                 'NPOL': {'value': 0,
+                          'comment': 'Nr of polarisations',
+                          'description': ""},
+                 'TBIN': {'value': 0,
+                          'comment': '[s] Time per bin or sample',
+                          'description': ""},
+                 'NBIN': {'value': 0,
+                          'comment': 'Nr of bins (PSR/CAL mode; else 1)',
+                          'description': ""},
+                 'NBIN_PRD': {'value': 0,
+                              'comment': 'Nr of bins/pulse period (for gated data)',
+                              'description': ""},
+                 'PHS_OFFS': {'value': 0,
+                              'comment': 'Phase offset of bin 0 for gated data',
+                              'description': ""},
+                 'NBITS': {'value': 0,
+                           'comment': 'Nr of bits/datum (SEARCH mode data, else 1)',
+                           'description': ""},
+                 'ZERO_OFF': {'value': 0,
+                              'comment': 'Zero offset for SEARCH-mode data',
+                              'description': ""},
+                 'SIGNINT': {'value': 0,
+                             'comment': '1 for signed ints in SEARCH-mode data, else 0',
+                             'description': ""},
+                 'NSUBOFFS': {'value': 0,
+                              'comment': 'Subint offset (Contiguous SEARCH-mode files)',
+                              'description': ""},
+                 'NCHAN': {'value': 0,
+                           'comment': 'Number of channels/sub-bands in this file',
+                           'description': ""},
+                 'CHAN_BW': {'value': 0,
+                             'comment': '[MHz] Channel/sub-band width',
+                             'description': ""},
+                 'DM': {'value': 0,
+                        'comment': '[cm-3 pc] DM for post-detection dedisperion',
+                        'description': ""},
+                 'RM': {'value': 0,
+                        'comment': '[rad m-2] RM for post-detection deFaraday',
+                        'description': ""},
+                 'NCHNOFFS': {'value': 0,
+                              'comment': 'Channel/sub-band offset for split files',
+                              'description': ""},
+                 'NSBLK': {'value': 0,
+                           'comment': 'Samples/row (SEARCH mode, else 1)',
+                           'description': ""},
+                 'NSTOT': {'value': 0,
+                           'comment': 'Total number of samples (SEARCH mode, else 1)',
+                           'description': ""}
+                }
 
 subint_columns = {'INDEXVAL': {'format': '1D', 'unit': '',
                    'comment': 'Optionally used if INT_TYPE != TIME',

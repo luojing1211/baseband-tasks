@@ -212,10 +212,6 @@ class SubintHDU(fits.BinTableHDU):
             self._req_columns['OFFS_SUB']['value'] = center_off
 
     @property
-    def nrow(self):
-        return self.data.shape[0]
-
-    @property
     def samples_per_row(self):
         return self.header['NSBLK']
 
@@ -234,10 +230,6 @@ class SubintHDU(fits.BinTableHDU):
                                        'chan'])
         result = r_shape(nrows, samples_per_row, nbin, npol, nchan)
         return result
-
-    @shape.setter
-    def shape(self):
-        pass
 
     @property
     def pol(self):
@@ -263,16 +255,10 @@ class SubintHDU(fits.BinTableHDU):
         else:
             self._req_columns['DAT_FREQ']['value'] = val
 
-    def read(self, time_samples):
-        num_rows = int(time_samples / samples_per_row)
-        rest_samples = time_samples - num_rows * samples_per_row
-        data =  self.data['DATA'][offset:num_rows + 1]
-    # def get_data(self, time_samples):
-    #     # The seek is not working
-    #     samples_per_row = self.data_header['NSBLK']
-    #     num_rows = int(time_samples / samples_per_row)
-    #     rest_samples = time_samples - num_rows * samples_per_row
-    #     data = self.data_hdu.read(row=np.arange(num_rows))
-    #     result = data['DATA'].reshape((num_rows * samples_per_row,
-    #                                    self.get_shape[1::]))
-    #     return result[0: time_samples]
+    def read_data_row(self, row_index):
+        if row_index >= self.nrow:
+            raise EOFError("cannot read from beyond end of input SUBINT HDU.")
+
+        row = self.data[row_index]
+        return ((row['DATA'] - self.header['ZERO_OFF'])* row['DAT_SCL'] +
+                row['DAT_OFFS'])
