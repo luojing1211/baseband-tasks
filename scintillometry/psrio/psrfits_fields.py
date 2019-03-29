@@ -127,65 +127,162 @@ subint_header = {'BITPIX': {'value': 8,
                                            " recorded for each sub-integration"
                                            " has no relation to pulse phase."},
                  'INT_TYPE': {'value': ' ',
-                              'comment': 'Time axis (TIME, BINPHSPERI, BINLNGASC, etc',
-                              'description': ""},
+                              'comment': 'Time axis (TIME, BINPHSPERI,'
+                                         ' BINLNGASC, etc',
+                              'description': "Normally data are recorded with a"
+                                             " uniform time axis, i.e.,"
+                                             " sub-integrations are spaced by"
+                                             " equal time intervals. However,"
+                                             " in post-processing it is"
+                                             " possible to make the nominal"
+                                             " time axis non-linear, to"
+                                             " represent for example, binary"
+                                             " orbital phase or longitude. This"
+                                             " keyword describes the form of"
+                                             " the nominal time axis."},
                  'INT_UNIT': {'value': ' ',
-                              'comment': 'Unit of time axis (SEC, PHS (0-1), DEG)',
-                              'description': ""},
+                              'comment': 'Unit of time axis (SEC, PHS (0-1),'
+                                         ' DEG)',
+                              'description': "Units of the nominal time axis."},
                  'SCALE': {'value': ' ',
-                           'comment': 'Intensity units (FluxDen/RefFlux/Jansky)',
-                           'description': ""},
+                           'comment': 'Intensity units (FluxDen/RefFlux/'
+                                      'Jansky)',
+                           'description': "Units of the data."},
                  'POL_TYPE': {'value': ' ',
-                              'comment': 'Polarisation identifier (e.g., AABBCRCI, AA+BB)',
-                              'description': ""},
+                              'comment': 'Polarisation identifier (e.g.,'
+                                         ' AABBCRCI, AA+BB)',
+                              'description': "A string describing the type of"
+                                             " polarisation data, e.g.,"
+                                             " for NPOL=1 total-intensity data"
+                                             " (summed orthogonal"
+                                             " polarisations), 'AA+BB' may be"
+                                             " used, where AA represents the"
+                                             " auto-spectrum of the A channel"
+                                             " and BB represents the"
+                                             " auto-spectrum of the B channel."
+                                             " For NPOL=2, 'AABB' may be used."
+                                             " For full polarisation data,"
+                                             " 'AABBCRCI' may be used where CR"
+                                             " represents the real part of the"
+                                             " A* B cross-spectrum and CI"
+                                             " represents the imaginary part."
+                                             " For calibrated Stokes"
+                                             " parameters, 'IQUV' is normally"
+                                             " used."},
                  'NPOL': {'value': 0,
                           'comment': 'Nr of polarisations',
-                          'description': ""},
+                          'description': "The number of polarisation products"
+                                         " contained in the DATA table."},
                  'TBIN': {'value': 0,
                           'comment': '[s] Time per bin or sample',
-                          'description': ""},
+                          'description': "For fold-mode data, the bin width in"
+                                         " seconds; for search-mode data, the"
+                                         " sampling interval in seconds."},
                  'NBIN': {'value': 0,
                           'comment': 'Nr of bins (PSR/CAL mode; else 1)',
-                          'description': ""},
+                          'description': "The number of bins in the fold-mode"
+                                         " profile. For search-mode data, this"
+                                         " parameter is irrelevant and normally"
+                                         " set to 1."},
                  'NBIN_PRD': {'value': 0,
-                              'comment': 'Nr of bins/pulse period (for gated data)',
-                              'description': ""},
+                              'comment': 'Nr of bins/pulse period (for gated'
+                                         ' data)',
+                              'description': "For observations where only part"
+                                             " of the pulse profile is recorded"
+                                             " (gated data), NBIN_PRD is the"
+                                             " number of bins that the full"
+                                             " pulse period would occupy. For"
+                                             " example, if 256 bins are"
+                                             " recorded across one quarter of"
+                                             " the pulse period, NBIN = 256 and"
+                                             " NBIN_PRD = 1024.\n"
+                                             "Alternatively, if more than one"
+                                             " pulse period is contained within"
+                                             " the recorded pulse profile, then"
+                                             " NBIN_PRD is a sub-multiple of"
+                                             " NBIN."},
                  'PHS_OFFS': {'value': 0,
                               'comment': 'Phase offset of bin 0 for gated data',
-                              'description': ""},
+                              'description': "For gated data, the value of"
+                                             " pulse phase (in the range 0 -"
+                                             " 1.0) corresponding to the"
+                                             " leading edge of the first (index"
+                                             " zero) bin in the folded"
+                                             " profile."},
                  'NBITS': {'value': 0,
-                           'comment': 'Nr of bits/datum (SEARCH mode data, else 1)',
-                           'description': ""},
+                           'comment': 'Nr of bits/datum (SEARCH mode data,'
+                                      ' else 1)',
+                           'description': "For search-mode data, the number of"
+                                          " bits per sample datum. Ignored for"
+                                          " fold-mode data."},
                  'ZERO_OFF': {'value': 0,
                               'comment': 'Zero offset for SEARCH-mode data',
-                              'description': ""},
+                              'description': "For data recorded as unsigned"
+                                             " integers, the offset of the"
+                                             " nominal data zero in digitiser"
+                                             " units (actual data value ="
+                                             " unsigned integer value -"
+                                             " ZERO_OFF)."},
                  'SIGNINT': {'value': 0,
-                             'comment': '1 for signed ints in SEARCH-mode data, else 0',
-                             'description': ""},
+                             'comment': '1 for signed ints in SEARCH-mode data,'
+                                        ' else 0',
+                             'description': "A flag to indicate that the data"
+                                            " values are signed integers rather"
+                                            " than unsigned integers."},
                  'NSUBOFFS': {'value': 0,
-                              'comment': 'Subint offset (Contiguous SEARCH-mode files)',
-                              'description': ""},
+                              'comment': 'Subint offset (Contiguous SEARCH-mode'
+                                         ' files)',
+                              'description': "For files split in time, NSUBOFFS"
+                                             " is the accumulated"
+                                             " sub-integration count at the"
+                                             " start of this file (such that"
+                                             " true index value = file index"
+                                             " value + NSUBOFFS)."},
                  'NCHAN': {'value': 0,
-                           'comment': 'Number of channels/sub-bands in this file',
-                           'description': ""},
+                           'comment': 'Number of channels/sub-bands in this'
+                                      ' file',
+                           'description': "Number of frequency channels for"
+                                          " each polarisation"},
                  'CHAN_BW': {'value': 0,
                              'comment': '[MHz] Channel/sub-band width',
-                             'description': ""},
+                             'description': "Channel bandwidth in MHz. Note"
+                                            " that CHAN_BW < 0 implies"
+                                            " decreasing frequency with"
+                                            " increasing channel number."},
                  'DM': {'value': 0,
-                        'comment': '[cm-3 pc] DM for post-detection dedisperion',
-                        'description': ""},
+                        'comment': '[cm-3 pc] DM for post-detection'
+                                   ' dedisperion',
+                        'description': "Dispersion measure used for"
+                                       " post-detection dedispersion."},
                  'RM': {'value': 0,
                         'comment': '[rad m-2] RM for post-detection deFaraday',
-                        'description': ""},
+                        'description': "Rotation measure used for"
+                                       " post-detection correction of Faraday"
+                                       " rotation"},
                  'NCHNOFFS': {'value': 0,
-                              'comment': 'Channel/sub-band offset for split files',
-                              'description': ""},
+                              'comment': 'Channel/sub-band offset for split'
+                                         ' files',
+                              'description': "For files split in frequency,"
+                                             " NCHNOFFS is the true channel"
+                                             " index of the first channel in"
+                                             " this file (true index value ="
+                                             " file index value + NCHNOFFS)."},
                  'NSBLK': {'value': 0,
                            'comment': 'Samples/row (SEARCH mode, else 1)',
-                           'description': ""},
+                           'description': "For search-mode data, the number of"
+                                          " samples in one table row or"
+                                          " sub-integration."},
                  'NSTOT': {'value': 0,
-                           'comment': 'Total number of samples (SEARCH mode, else 1)',
-                           'description': ""}
+                           'comment': 'Total number of samples (SEARCH mode,'
+                                      ' else 1)',
+                           'description': "Total number of valid samples in a"
+                                          " search-mode file. This is useful"
+                                          " since the last row may not be"
+                                          " completely filled. Note, for split"
+                                          " files, NSTOT should be the number"
+                                          " of samples in that file, i.e., not"
+                                          " accumulated over the whole"
+                                          " observation."}
                 }
 
 subint_columns = {'INDEXVAL': {'format': '1D', 'unit': '',
