@@ -147,7 +147,8 @@ class SubintHDU(fits.BinTableHDU):
     frequency are the same.
     """
 
-    _properties = ('start_time', 'sample_rate', 'shape', 'pol', 'frequency')
+    _properties = ('start_time', 'sample_rate', 'shape', 'samples_per_frame',
+                   'polarization', 'frequency')
     _headr_defaults = subint_header
     _req_columns = subint_columns
 
@@ -223,9 +224,9 @@ class SubintHDU(fits.BinTableHDU):
     @property
     def shape(self):
         raw_shape = self.raw_shape
-        new_shape = namedtuple('shape', ['nsample','nbin', 'npol', 'nchan'])
+        new_shape = namedtuple('shape', ['nsample','nbin', 'nchan', 'npol'])
         result = new_shape(raw_shape.nrow * raw_shape.samples_per_frame,
-                           raw_shape.nbin, raw_shape.npol, raw_shape.nchan)
+                           raw_shape.nbin, raw_shape.nchan, raw_shape.npol)
         return result
 
     @property
@@ -236,16 +237,16 @@ class SubintHDU(fits.BinTableHDU):
         npol = int(self.header['NPOL'])
         nbin = int(self.header['NBIN'])
         r_shape = namedtuple('shape', ['nrow', 'samples_per_frame','nbin',
-                                       'npol', 'nchan'])
-        result = r_shape(nrows, samples_per_frame, nbin, npol, nchan)
+                                       'nchan','npol'])
+        result = r_shape(nrows, samples_per_frame, nbin, nchan, npol)
         return result
 
     @property
-    def pol(self):
+    def polarization(self):
         return self.header['POL_TYPE']
 
-    @pol.setter
-    def pol(self, val):
+    @polarization.setter
+    def polarization(self, val):
         self.header['POL_TYPE'] = val
 
     @property
@@ -253,6 +254,10 @@ class SubintHDU(fits.BinTableHDU):
         if 'DAT_FREQ' in self.columns.names:
             freqs = u.Quantity(self.data['DAT_FREQ'],
                                u.MHz, copy=False)
+            assert np.isclose(freqs, freqs[0],
+                              atol=np.finfo(float).eps * u.MHz).all(), \
+                "Frequencies are different within one subint rows."
+            freqs = freqs[0]
         else:
             freqs = None
         return freqs
@@ -261,18 +266,23 @@ class SubintHDU(fits.BinTableHDU):
     def frequency(self, val):
         if 'DAT_FREQ' in self.columns.names:
             self.data['DAT_FREQ'] = val
-            ## Check frequency length. 
+            ## Check frequency length.
         else:
             self._req_columns['DAT_FREQ']['value'] = val
 
     def read_data_row(self, row_index):
-        if row_index >= self.nrow:
+        if row_index >= self.shape[0]:
             raise EOFError("cannot read from beyond end of input SUBINT HDU.")
 
         row = self.data[row_index]
-        return ((row['DATA'] - self.header['ZERO_OFF'])* row['DAT_SCL'] +
-                row['DAT_OFFS'])
-
+        # NOTE this should be confirmed. what is the right label order.
+        data_scale = row['DAT_SCL'].reshape(1, 1, len(row['DAT_SCL'], 1))
+        if 'ZERO_OFF' in self.header.keys():
+            result = ((row['DATA'] - self.header['ZERO_OFF'])* data_scale +
+                     row['DAT_OFFS'])
+        else:
+            result = row['DATA'] * data_scale + row['DAT_OFFS']
+        return result
 
 HDU_map = {'PRIMARY': PsrfitsHearderHDU,
            'SUBINT': SubintHDU}

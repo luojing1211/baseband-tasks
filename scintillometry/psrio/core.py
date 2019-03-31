@@ -48,32 +48,40 @@ class Reader(StreamGenerator):
 
     def __init__(self, source, function, **kwargs):
         self.source = source
-        self.args = {'function': function}
-        self.args.update(kwargs)
-        self.required_args = ['shape', 'start_time', 'sample_rate']
-        self.optional_args = ['samples_per_frame', 'frequency', 'sideband',
-                              'polarization', 'dtype']
+        self.input_args = kwargs
+        # The required argument will come from the source.
+        self.req_args = {'shape': None, 'start_time': None,
+                         'sample_rate': None}
+        self.opt_args = {'samples_per_frame': 1, 'frequency': None,
+                         'sideband': None, 'polarization': None, 'dtype':None}
+
         self._prepare_args()
-        super(StreamGenerator, self).__init__(*self.args)
+
+        super(Reader, self).__init__(*(function, self.req_args['shape'],
+                                       self.req_args['start_time'],
+                                       self.req_args['sample_rate']),
+                                     **self.opt_args)
+
 
     def _prepare_args(self):
         """This setup function setups up the argrument for initializing the
         StreamGenerator.
         """
-        input_args_keys = self.args.keys()
+        input_args_keys = self.input_args.keys()
         source_properties = self.source._properties
-        for rg in self.required_args:
-            if rg not in source_properties and rg not in input_args_keys:
-                raise ValueError("'{}' is required. You can input it while "
-                                 "initialization or give a function in the "
-                                 "translator.")
-            self.args[rg] = getattr(self.source, rg)
-            print(rg, self.args[rg])
+        for rg in self.req_args.keys():
+            if rg not in source_properties:
+                raise ValueError("'{}' is required.".format(rg))
 
-        for og in self.optional_args:
-            if og in source_properties and og not in input_args_keys:
-                self.args[og] = getattr(self.source, og)
-                print(og, self.args[og])
+            self.req_args[rg] = getattr(self.source, rg)
+
+        for og in self.opt_args.keys():
+            if og in source_properties:
+                self.opt_args[og] = getattr(self.source, og)
+            elif og in input_args_keys:
+                self.opt_args[og] = self.input_args[og]
+            else:
+                return
 
 class HDUReader(Reader):
     """ This is a class for reading PSRFITS HDUs to scintillometry
