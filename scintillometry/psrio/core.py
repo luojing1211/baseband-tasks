@@ -63,7 +63,6 @@ class Reader(StreamGenerator):
                                        self.req_args['sample_rate']),
                                      **self.opt_args)
 
-
     def _prepare_args(self):
         """This setup function setups up the argrument for initializing the
         StreamGenerator.

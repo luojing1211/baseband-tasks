@@ -15,8 +15,6 @@ import numpy as np
 __all__ = ["PsrfitsHearderHDU", "SubintHDU"]
 
 
-
-
 class PsrfitsHearderHDU(fits.PrimaryHDU):
     """HeaderHDU class provides the translator function between baseband-style
     file object and the PSRFITS main header HDU.
