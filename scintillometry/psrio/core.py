@@ -56,6 +56,7 @@ class Reader(StreamGenerator):
                          'sideband': None, 'polarization': None, 'dtype':None}
 
         self._prepare_args()
+        self._setup_args()
 
         super(Reader, self).__init__(*(function, self.req_args['shape'],
                                        self.req_args['start_time'],
@@ -81,7 +82,12 @@ class Reader(StreamGenerator):
             elif og in input_args_keys:
                 self.opt_args[og] = self.input_args[og]
             else:
-                return
+                continue
+        self._setup_args()
+        return
+
+    def _setup_args(self):
+        pass
 
 class HDUReader(Reader):
     """ This is a class for reading PSRFITS HDUs to scintillometry
@@ -97,3 +103,9 @@ class HDUReader(Reader):
 
     def _read_frame(self, frame_index):
         return self.source.read_data_row(frame_index)
+
+    def _setup_args(self):
+        # Reshape frequency.
+        shape = self.req_args['shape']
+        freq_shape = shape._replace(npol=1, nbin=1)[1:]
+        self.opt_args['frequency'] = self.opt_args['frequency'].reshape(freq_shape)

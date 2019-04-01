@@ -267,6 +267,8 @@ class SubintHDU(fits.BinTableHDU):
         if 'DAT_FREQ' in self.columns.names:
             self.data['DAT_FREQ'] = val
             ## Check frequency length.
+            assert self.shape.nchan == len(val), \
+                "Input frequency does not match the number of channels in data."
         else:
             self._req_columns['DAT_FREQ']['value'] = val
 
@@ -275,14 +277,16 @@ class SubintHDU(fits.BinTableHDU):
             raise EOFError("cannot read from beyond end of input SUBINT HDU.")
 
         row = self.data[row_index]
-        # NOTE this should be confirmed. what is the right label order.
-        data_scale = row['DAT_SCL'].reshape(1, 1, len(row['DAT_SCL'], 1))
+        new_shape = self.shape._replace(nsample=1, nbin=1, npol=1)
+        data_scale = row['DAT_SCL'].reshape(new_shape)
+        data_off_set = row['DAT_SCL'].reshape(new_shape)
         if 'ZERO_OFF' in self.header.keys():
             result = ((row['DATA'] - self.header['ZERO_OFF'])* data_scale +
-                     row['DAT_OFFS'])
+                      data_off)
         else:
-            result = row['DATA'] * data_scale + row['DAT_OFFS']
+            result = row['DATA'] * data_scale + data_off_set
         return result
+
 
 HDU_map = {'PRIMARY': PsrfitsHearderHDU,
            'SUBINT': SubintHDU}
