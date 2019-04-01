@@ -104,10 +104,7 @@ class HDUReader(Reader):
 
     def _read_frame(self, frame_index):
         res = self.source.read_data_row(frame_index).T
-        print(res)
-        print(res.dtype)
-        print(res.shape)
-        return res
+        return res.reshape((self.samples_per_frame, ) + self.shape[1:])
 
     def _setup_args(self):
         # Reshape frequency.
