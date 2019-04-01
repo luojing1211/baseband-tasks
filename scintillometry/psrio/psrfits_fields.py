@@ -391,6 +391,8 @@ subint_columns = {'INDEXVAL': {'format': '1D', 'unit': '',
                                   " data cover the full available range." },
                   'DATA': {'format': 'I', 'unit': 'Jy',
                    'comment': "Subint data table",
+                   'note': "FITS follows the fortran order, the data dimsions"
+                           " are fliped.", 
                    'description': "Table containing the digitised data."
                                   " For fold-mode data, 16-bit integers are"
                                   " used to represent the scaled and"

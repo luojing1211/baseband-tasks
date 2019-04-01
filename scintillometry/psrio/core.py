@@ -6,6 +6,7 @@ format.
 from ..generators import StreamGenerator
 from astropy.io import fits
 from .psrfits_io import HDU_map
+from astropy import log
 
 
 __all__ = ['Reader', 'PsrfitsReader']
@@ -20,7 +21,8 @@ def open_read(filename, memmap=None):
             else:
                 buffer[hdu.name] = [hdu,]
         else:
-             warn("HDU {} is not a PSRFITs HDUs.".format(ii))
+             log.warn("The {}th HDU '{}'' is not a known PSRFITs"
+                      " HDU.".format(ii, hdu.name))
     if len(buffer['PRIMARY']) > 1 or len(buffer['PRIMARY']) < 1:
         raise ValueError("File `{}` does not have a header"
                          " HDU or have more than one header"
@@ -101,7 +103,11 @@ class HDUReader(Reader):
         super(HDUReader, self).__init__(psrfits_hdu, None)
 
     def _read_frame(self, frame_index):
-        return self.source.read_data_row(frame_index)
+        res = self.source.read_data_row(frame_index).T
+        print(res)
+        print(res.dtype)
+        print(res.shape)
+        return res
 
     def _setup_args(self):
         # Reshape frequency.

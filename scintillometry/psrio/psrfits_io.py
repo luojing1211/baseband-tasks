@@ -76,7 +76,7 @@ class PsrfitsHearderHDU(fits.PrimaryHDU):
             int_sec, frac_sec = divmod(dt.value, 1)
             self.header['STT_SMJD'] = int(int_sec)
             self.header['STT_OFFS'] = frac_sec
-            self.header['DATE-OBS'] = time.isot.split('.')[0]
+            self.header['DATE-OBS'] = time.fits
 
     @property
     def observatory(self):
@@ -111,20 +111,20 @@ class PsrfitsHearderHDU(fits.PrimaryHDU):
 
     @property
     def ra(self):
-        return Angle(self.header['RA'], unit=u.hourangle)
+        return Longitude(self.header['RA'], unit=u.hourangle)
 
     @ra.setter
     def ra(self, val):
-        val = Angle(val, unit=u.hourangle)
+        val = Longitude(val, unit=u.hourangle)
         self.header['RA'] = val.to_string(sep=':')
 
     @property
     def dec(self):
-        return Angle(self.header['DEC'], unit=u.deg)
+        return Latitude(self.header['DEC'], unit=u.deg)
 
     @ra.setter
     def dec(self, val):
-        val = Angle(val, unit=u.deg)
+        val = Latitude(val, unit=u.deg)
         self.header['DEC'] = val.to_string(sep=':')
 
 
@@ -260,6 +260,10 @@ class SubintHDU(fits.BinTableHDU):
             freqs = None
         return freqs
 
+    @property
+    def dtype(self):
+        return self.data['DATA'].dtype
+
     @frequency.setter
     def frequency(self, val):
         if 'DAT_FREQ' in self.columns.names:
@@ -275,14 +279,18 @@ class SubintHDU(fits.BinTableHDU):
             raise EOFError("cannot read from beyond end of input SUBINT HDU.")
 
         row = self.data[row_index]
-        new_shape = self.shape._replace(nsample=1, nbin=1, npol=1)
+        new_shape = self.raw_shape._replace(samples_per_frame=1, nbin=1,
+                                            npol=1)[1:]
         data_scale = row['DAT_SCL'].reshape(new_shape)
-        data_off_set = row['DAT_SCL'].reshape(new_shape)
+        data_off_set = row['DAT_OFFS'].reshape(new_shape)
+        zero_off = np.asarray(0, dtype=self.dtype)
         if 'ZERO_OFF' in self.header.keys():
-            result = ((row['DATA'] - self.header['ZERO_OFF'])* data_scale +
-                      data_off)
-        else:
-            result = row['DATA'] * data_scale + data_off_set
+            try:
+                zero_off = np.asarray(self.header['ZERO_OFF'], dtype=self.dtype)
+            except:
+                pass
+        result = ((row['DATA'] - zero_off)* data_scale +
+                   data_off_set)
         return result
 
 
