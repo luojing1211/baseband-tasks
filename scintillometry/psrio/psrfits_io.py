@@ -127,6 +127,10 @@ class PsrfitsHearderHDU(fits.PrimaryHDU):
         val = Latitude(val, unit=u.deg)
         self.header['DEC'] = val.to_string(sep=':')
 
+    @property
+    def obs_mode(self):
+        return self.header['OBS_MODE']
+
 
 class SubintHDU(fits.BinTableHDU):
     """SubintHDU class provides the translator functions between baseband-style
@@ -175,8 +179,14 @@ class SubintHDU(fits.BinTableHDU):
             raise ValueError("Input HDU is not a SUBINT type.")
 
     @property
+    def mode(self):
+        return self.header_hdu.obs_mode
+
+    @property
     def sample_rate(self):
-        return 1.0 / (u.Quantity(self.header['TBIN'] , u.s))
+        sample_time = u.Quantity(self.data[0]['TSUBINT'] / self.nrow /
+                                 self.samples_per_frame, u.s)
+        return 1.0 / sample_time
 
     @sample_rate.setter
     def sample_rate(self, val):
@@ -212,8 +222,29 @@ class SubintHDU(fits.BinTableHDU):
             self._req_columns['OFFS_SUB']['value'] = center_off
 
     @property
+    def nrow(self):
+        return int(self.header['NAXIS2'])
+
+    @property
+    def nchan(self):
+        return int(self.header['NCHAN'])
+
+    @property
+    def npol(self):
+        return int(self.header['NPOL'])
+
+    @property
+    def nbin(self):
+        return int(self.header['NBIN'])
+
+
+    @property
     def samples_per_frame(self):
-        return int(self.header['NSBLK'])
+        try:
+            return int(self.header['NSBLK'])
+        except:
+            return int(np.prod(self.data_shape)/(self.nrow * self.nchan *
+                                                 self.npol * self.nbin))
 
     @samples_per_frame.setter
     def samples_per_frame(self, val):
@@ -229,14 +260,31 @@ class SubintHDU(fits.BinTableHDU):
 
     @property
     def raw_shape(self):
-        nrows = int(self.header['NAXIS2'])
-        samples_per_frame = self.samples_per_frame
-        nchan = int(self.header['NCHAN'])
-        npol = int(self.header['NPOL'])
-        nbin = int(self.header['NBIN'])
         r_shape = namedtuple('shape', ['nrow', 'samples_per_frame','nbin',
                                        'nchan','npol'])
-        result = r_shape(nrows, samples_per_frame, nbin, nchan, npol)
+        result = r_shape(self.nrow, self.samples_per_frame, self.nbin,
+                         self.nchan, self.npol)
+        return result
+
+    @property
+    def data_shape(self):
+        d_shape_raw = self.data['DATA'].shape
+        if self.mode == "SEARCH":
+            d_shape_header = (self.nbin, self.nchan, self.npol,
+                              self.samples_per_frame)
+        else:
+            d_shape_header = (self.nbin, self.nchan, self.npol)
+        if d_shape_raw != (self.nrow, ) + d_shape_header[::-1]:
+            raise ValueError("Data shape does not match with the header"
+                             " information")
+        if self.mode == "SEARCH":
+            d_shape = namedtuple('d_shape', ['nrow', 'nsample', 'npol', 'nchan',
+                                             'nbin'])
+            result  = d_shape(self.nrow,  self.samples_per_frame, self.npol,
+                              self.nchan, self.nbin)
+        else:
+            d_shape = namedtuple('d_shape', ['nrow', 'npol', 'nchan', 'nbin'])
+            result  = d_shape(self.nrow,  self.npol, self.nchan, self.nbin)
         return result
 
     @property
@@ -279,8 +327,8 @@ class SubintHDU(fits.BinTableHDU):
             raise EOFError("cannot read from beyond end of input SUBINT HDU.")
 
         row = self.data[row_index]
-        new_shape = self.raw_shape._replace(samples_per_frame=1, nbin=1,
-                                            npol=1)[1:]
+        new_shape = self.raw_shape._replace(samples_per_frame=1,
+                                            nbin=1)[-1:1:-1]
         data_scale = row['DAT_SCL'].reshape(new_shape)
         data_off_set = row['DAT_OFFS'].reshape(new_shape)
         zero_off = np.asarray(0, dtype=self.dtype)
@@ -291,6 +339,12 @@ class SubintHDU(fits.BinTableHDU):
                 pass
         result = ((row['DATA'] - zero_off)* data_scale +
                    data_off_set)
+        data_wts = np.ones(self.nchan)
+        if 'DAT_WTS' in self.columns.names:
+            data_wts = row['DAT_WTS']
+        wts_shape = self.raw_shape._replace(samples_per_frame=1, nbin=1,
+                                            npol=1)[-1:1:-1]
+        result *= data_wts.reshape(wts_shape)
         return result
 
 

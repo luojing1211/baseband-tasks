@@ -43,8 +43,8 @@ class Reader(StreamGenerator):
 
     Parameter
     ---------
-    translator : `Translator` object or its sub_class
-        The class for translating head and data from the other format
+    scource : object
+        The source object for the input file.
     """
 
 
