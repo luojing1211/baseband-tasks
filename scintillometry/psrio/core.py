@@ -90,6 +90,7 @@ class Reader(StreamGenerator):
     def _setup_args(self):
         pass
 
+
 class HDUReader(Reader):
     """ This is a class for reading PSRFITS HDUs to scintillometry
     StreamGenerator style of file handleself.

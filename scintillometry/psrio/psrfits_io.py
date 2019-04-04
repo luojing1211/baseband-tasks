@@ -201,7 +201,6 @@ class SubintHDU(fits.BinTableHDU):
         file_start = self.header_hdu.start_time
         if "OFFS_SUB" in self.columns.names:
             subint_times = u.Quantity(self.data['OFFS_SUB'], u.s, copy=False)
-            samples_per_frame = self.header['NSBLK']
             sample_time = 1.0 / self.sample_rate
             start_time = (file_start + subint_times[0] -
                           self.samples_per_frame / 2 * sample_time)
@@ -237,7 +236,6 @@ class SubintHDU(fits.BinTableHDU):
     def nbin(self):
         return int(self.header['NBIN'])
 
-
     @property
     def samples_per_frame(self):
         try:
@@ -268,6 +266,7 @@ class SubintHDU(fits.BinTableHDU):
 
     @property
     def data_shape(self):
+        # Data are save in the fortran order. Reversed from the header label.
         d_shape_raw = self.data['DATA'].shape
         if self.mode == "SEARCH":
             d_shape_header = (self.nbin, self.nchan, self.npol,
@@ -327,6 +326,7 @@ class SubintHDU(fits.BinTableHDU):
             raise EOFError("cannot read from beyond end of input SUBINT HDU.")
 
         row = self.data[row_index]
+        # Reversed the header shape to match the data
         new_shape = self.raw_shape._replace(samples_per_frame=1,
                                             nbin=1)[-1:1:-1]
         data_scale = row['DAT_SCL'].reshape(new_shape)
