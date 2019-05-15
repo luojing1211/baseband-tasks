@@ -15,7 +15,22 @@ import numpy as np
 __all__ = ["PsrfitsHearderHDU", "SubintHDU"]
 
 
-class PsrfitsHearderHDU(fits.PrimaryHDU):
+class HDUBase:
+    """This is the HDUBase class that defines some generic API functions
+    """
+    _header_defaults = {}
+    def verify(self):
+        raise NotImplementError
+
+    def set_header_card(self, key, value=None, comment=None):
+        if value is None and key in self._header_defaults.keys():
+            self.header.set(key, self._header_defaults['key']['value'],
+                            self._header_defaults['key']['comment'])
+        else:
+            self.header.set(key, value, comment)
+
+
+class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
     """HeaderHDU class provides the translator function between baseband-style
     file object and the PSRFITS main header HDU.
 
@@ -23,7 +38,7 @@ class PsrfitsHearderHDU(fits.PrimaryHDU):
     ---------
     header_hdu : `Pdat.header_hdu`
     """
-    _properties = ('start_time', 'observatory', 'frequency', 'source')
+    _properties = ('start_time', 'observatory', 'frequency', 'ra', 'dec')
 
     _header_defaults = main_header
 
@@ -43,8 +58,8 @@ class PsrfitsHearderHDU(fits.PrimaryHDU):
             raise ValueError("The input fits header is not a PSRFITS type.")
 
     def _init_empty(self):
-        for k in self._defaults:
-            self.header.set(k[0], k[1], k[2])
+        for k, v in self._header_defaults.items():
+            self.header.set(k, v['value'], v['comment'])
         self.header.add_comment('FITS (Flexible Image Transport System) format'
                                 'is defined in Astronomy and Astrophysics, '
                                 'volume 376, page 359; bibcode:'
@@ -132,7 +147,7 @@ class PsrfitsHearderHDU(fits.PrimaryHDU):
         return self.header['OBS_MODE']
 
 
-class SubintHDU(fits.BinTableHDU):
+class SubintHDU(fits.BinTableHDU, HDUBase):
     """SubintHDU class provides the translator functions between baseband-style
     file object and the PSRFITS SUBINT HDU.
 
@@ -151,7 +166,7 @@ class SubintHDU(fits.BinTableHDU):
 
     _properties = ('start_time', 'sample_rate', 'shape', 'samples_per_frame',
                    'polarization', 'frequency')
-    _headr_defaults = subint_header
+    _header_defaults = subint_header
     _req_columns = subint_columns
 
     def __init__(self, header_hdu, subint_hdu=None):
@@ -166,7 +181,7 @@ class SubintHDU(fits.BinTableHDU):
         self.offset = 0
 
     def _init_empty(self):
-        for k in self._defaults:
+        for k in self._header_defaults:
             self.header.set(k[0], k[1], k[2])
 
     def make_columns(self, name):

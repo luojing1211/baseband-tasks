@@ -1,4 +1,4 @@
-"""psr_reader.py defines the classes for reading pulsar data from a non-baseband
+"""core.py defines the classes for reading pulsar data from a non-baseband
 format.
 """
 
@@ -90,6 +90,29 @@ class Reader(StreamGenerator):
     def _setup_args(self):
         pass
 
+
+class Writer(BaseTaskBase):
+    """Writer defines the base class for writing data to required formate.
+
+    Parameter
+    ---------
+    fh : filehandle
+        The filehandle object for input data.
+    target : object
+        The target file format object.
+    **kwargs
+        External input information.
+    """
+    def __init__(self, fh, target, **kwargs):
+        super(Writer, self).__init__(fh)
+        self.target = target
+        self.input_args = kwargs
+
+    def _set_target_property(self):
+        for p in self.target._properties:
+            # Get property value
+            pv = getattr(self, p, None)
+            setattr(self.target, p, pv)
 
 class HDUReader(Reader):
     """ This is a class for reading PSRFITS HDUs to scintillometry
