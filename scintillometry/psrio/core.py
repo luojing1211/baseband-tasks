@@ -99,35 +99,6 @@ class Reader(StreamGenerator):
         pass
 
 
-class Writer(BaseTaskBase):
-    """Writer defines the base class for writing data to required formate.
-
-    Parameter
-    ---------
-    fh : filehandle
-        The filehandle object for input data.
-    target : object
-        The target file format object.
-    **kwargs
-        External input information.
-    """
-    def __init__(self, fh, target, **kwargs):
-        super(Writer, self).__init__(fh)
-        self.target = target
-        self.input_args = kwargs
-
-    def _set_target_properties(self):
-        """This function gets the properties from fh and assign them to the
-        target.
-        """
-        for p in self.target._properties:
-            # Get property value
-            pv = getattr(self, p, None)
-            setattr(self.target, p, pv)
-
-    def read(self):
-        pass
-
 class HDUReader(Reader):
     """ This is a class for reading PSRFITS HDUs to scintillometry
     StreamGenerator style of file handleself.
@@ -153,20 +124,3 @@ class HDUReader(Reader):
             self.opt_args['frequency'] = self.opt_args['frequency'].reshape(freq_shape)
         else:
             self.opt_args['frequency']= None
-
-
-class HDUWriter(Writer):
-    """HDHWriter class is designed to write a fits HDU.
-
-    Parameter
-    ---------
-    fh : filehandle
-        The source filehandle.
-    hdu : fits HDU object
-        Target fits HDU
-    **kwargs
-        Other information for wrting the HDU
-    """
-    def __init__(self, fh, hdu, **kwargs):
-        super(HDUWriter, self).__init__(fh, hdu, **kwargs)
-        self._set_target_properties()
