@@ -10,7 +10,8 @@ from .psrfits_io import HDU_map
 from astropy import log
 
 
-__all__ = ['Reader', 'PsrfitsReader']
+__all__ = ['open_read', 'Reader', 'HDUReader']
+
 
 def open_read(filename, memmap=None):
     """ This function reads a fits file to a HDUReader list
