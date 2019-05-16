@@ -125,3 +125,7 @@ class HDUReader(Reader):
             self.opt_args['frequency'] = self.opt_args['frequency'].reshape(freq_shape)
         else:
             self.opt_args['frequency']= None
+
+    @property
+    def header(self):
+        return self.source.header

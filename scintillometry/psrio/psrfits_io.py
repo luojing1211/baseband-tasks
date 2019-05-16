@@ -68,9 +68,9 @@ class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
     @property
     def start_time(self):
         # TODO add location
-        MJD_d_int = self.header['STT_IMJD'] * u.day
-        MJD_s_int = self.header['STT_SMJD'] * u.s
-        MJD_s_frac = self.header['STT_OFFS'] * u.s
+        MJD_d_int = np.longdouble(self.header['STT_IMJD']) * u.day
+        MJD_s_int = np.longdouble(self.header['STT_SMJD']) * u.s
+        MJD_s_frac = np.longdouble(self.header['STT_OFFS']) * u.s
         #NOTE I am assuming PSRFITS's time scale is UTC
         return Time(MJD_d_int, MJD_s_int + MJD_s_frac, format='mjd',
                     scale='utc', precision=9)
@@ -210,7 +210,8 @@ class SubintHDU(fits.BinTableHDU, HDUBase):
 
     @property
     def sample_rate(self):
-        sample_time = u.Quantity(self.data[0]['TSUBINT'] / self.nrow /
+        # We assume the sample rate are the same for all the rows.
+        sample_time = u.Quantity(self.data[0]['TSUBINT'] /
                                  self.samples_per_frame, u.s)
         return 1.0 / sample_time
 
