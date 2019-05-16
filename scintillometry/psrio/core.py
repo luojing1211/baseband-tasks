@@ -4,6 +4,7 @@ format.
 
 
 from ..generators import StreamGenerator
+from ..base import BaseTaskBase
 from astropy.io import fits
 from .psrfits_io import HDU_map
 from astropy import log
@@ -12,6 +13,8 @@ from astropy import log
 __all__ = ['Reader', 'PsrfitsReader']
 
 def open_read(filename, memmap=None):
+    """ This function reads a fits file to a HDUReader list
+    """
     hdus = fits.open(filename, 'readonly', memmap=memmap)
     buffer = {'PRIMARY':[]}
     for ii, hdu in enumerate(hdus):
@@ -35,7 +38,12 @@ def open_read(filename, memmap=None):
     for k, v in buffer.items():
         for hdu in v:
             psrfits_hdus.append(HDU_map[k](psrfits_hdus[0], hdu))
-    return psrfits_hdus
+
+    # Build reader on the HDUs
+    readers = []
+    for hdus in psrfits_hdus:
+        readers.append(HDUReader(hdus))
+    return readers
 
 
 class Reader(StreamGenerator):
@@ -108,11 +116,17 @@ class Writer(BaseTaskBase):
         self.target = target
         self.input_args = kwargs
 
-    def _set_target_property(self):
+    def _set_target_properties(self):
+        """This function gets the properties from fh and assign them to the
+        target.
+        """
         for p in self.target._properties:
             # Get property value
             pv = getattr(self, p, None)
             setattr(self.target, p, pv)
+
+    def read(self):
+        pass
 
 class HDUReader(Reader):
     """ This is a class for reading PSRFITS HDUs to scintillometry
@@ -133,5 +147,26 @@ class HDUReader(Reader):
     def _setup_args(self):
         # Reshape frequency.
         shape = self.req_args['shape']
-        freq_shape = shape._replace(npol=1, nbin=1)[1:]
-        self.opt_args['frequency'] = self.opt_args['frequency'].reshape(freq_shape)
+        if shape != (0, ):
+            #TODO Need to be more generic here.
+            freq_shape = shape._replace(npol=1, nbin=1)[1:]
+            self.opt_args['frequency'] = self.opt_args['frequency'].reshape(freq_shape)
+        else:
+            self.opt_args['frequency']= None
+
+
+class HDUWriter(Writer):
+    """HDHWriter class is designed to write a fits HDU.
+
+    Parameter
+    ---------
+    fh : filehandle
+        The source filehandle.
+    hdu : fits HDU object
+        Target fits HDU
+    **kwargs
+        Other information for wrting the HDU
+    """
+    def __init__(self, fh, hdu, **kwagrs):
+        super(HDUWriter, self).__init__(fh, hdu, **kwargs)
+        self._set_target_properties()

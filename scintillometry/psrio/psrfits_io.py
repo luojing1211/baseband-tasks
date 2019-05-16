@@ -29,7 +29,6 @@ class HDUBase:
         else:
             self.header.set(key, value, comment)
 
-
 class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
     """HeaderHDU class provides the translator function between baseband-style
     file object and the PSRFITS main header HDU.
@@ -38,7 +37,8 @@ class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
     ---------
     header_hdu : `Pdat.header_hdu`
     """
-    _properties = ('start_time', 'observatory', 'frequency', 'ra', 'dec')
+    _properties = ('start_time', 'observatory', 'frequency', 'ra', 'dec',
+                   'shape', 'sample_rate')
 
     _header_defaults = main_header
 
@@ -92,6 +92,14 @@ class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
             self.header['STT_SMJD'] = int(int_sec)
             self.header['STT_OFFS'] = frac_sec
             self.header['DATE-OBS'] = time.fits
+
+    @property
+    def shape(self):
+        return (0,)
+
+    @property
+    def sample_rate(self):
+        return 0 * u.Hz
 
     @property
     def observatory(self):
@@ -319,7 +327,11 @@ class SubintHDU(fits.BinTableHDU, HDUBase):
                 "Frequencies are different within one subint rows."
             freqs = freqs[0]
         else:
-            freqs = None
+            # Get the frequency from the header HDU
+            try:
+                freqs = self.header_hdu.frequency
+            except:
+                freqs = None
         return freqs
 
     @property
