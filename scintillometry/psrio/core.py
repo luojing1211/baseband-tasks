@@ -167,6 +167,6 @@ class HDUWriter(Writer):
     **kwargs
         Other information for wrting the HDU
     """
-    def __init__(self, fh, hdu, **kwagrs):
+    def __init__(self, fh, hdu, **kwargs):
         super(HDUWriter, self).__init__(fh, hdu, **kwargs)
         self._set_target_properties()
