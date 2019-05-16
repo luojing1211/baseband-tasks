@@ -112,9 +112,12 @@ class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
 
     @property
     def frequency(self):
-        n_chan = self.header['OBSNCHAN']
-        c_chan = self.header['OBSFREQ']
-        bw = self.header['OBSBW']
+        try:
+            n_chan = float(self.header['OBSNCHAN'])
+            c_chan = float(self.header['OBSFREQ'])
+            bw = float(self.header['OBSBW'])
+        except:
+            return None
         chan_bw = bw / n_chan
         #NOTE the frequency marker is on the center of the channels
         freq = np.arange(-n_chan / 2, n_chan / 2) * chan_bw + c_chan
