@@ -8,37 +8,46 @@ from ..base import BaseTaskBase
 from astropy.io import fits
 from .psrfits_io import HDU_map
 from astropy import log
-
+from collections import defaultdict
 
 __all__ = ['open_read', 'Reader', 'HDUReader']
 
 
 def open_read(filename, memmap=None):
-    """ This function reads a fits file to a HDUReader list
+    """ Function to read one PSRFITS file into a list of HDU Readers.
+
+    Parameter
+    ---------
+    filename : str
+        File name of the input PSRFITS file
+    memmap : bool, optional
+        Is memory mapping to be used? This value is obtained from the
+        configuration item astropy.io.fits.Conf.use_memmap. Default is True.
+
+    Return
+    ------
+    A list of the HDU readers.
     """
     hdus = fits.open(filename, 'readonly', memmap=memmap)
-    buffer = {'PRIMARY':[]}
+    buffer = defaultdict(list)
     for ii, hdu in enumerate(hdus):
         if hdu.name in HDU_map.keys():
-            if hdu.name in buffer.keys():
-                buffer[hdu.name].append(hdu)
-            else:
-                buffer[hdu.name] = [hdu,]
+            buffer[hdu.name].append(hdu)
         else:
-             log.warn("The {}th HDU '{}'' is not a known PSRFITs"
+            log.warn("Skipping HDU {} ({}), as it is not a known PSRFITs"
                       " HDU.".format(ii, hdu.name))
-    if len(buffer['PRIMARY']) > 1 or len(buffer['PRIMARY']) < 1:
+
+    primary = buffer.pop('PRIMARY', [])
+    if len(primary) != 1:
         raise ValueError("File `{}` does not have a header"
                          " HDU or have more than one header"
                          " HDU.".format(filename))
-    header_hdu = buffer['PRIMARY'][0]
-
+    primary_hdu = HDU_map['PRIMARY'](primary[0])
     psrfits_hdus = []
-    psrfits_hdus.append(HDU_map['PRIMARY'](header_hdu))
-    buffer.pop('PRIMARY')
+    psrfits_hdus.append(primary_hdu)
     for k, v in buffer.items():
         for hdu in v:
-            psrfits_hdus.append(HDU_map[k](psrfits_hdus[0], hdu))
+            psrfits_hdus.append(HDU_map[k](primary_hdu, hdu))
 
     # Build reader on the HDUs
     readers = []
@@ -55,24 +64,19 @@ class Reader(StreamGenerator):
     scource : object
         The source object for the input file.
     """
-
-
+    _req_args = {'shape': None, 'start_time': None, 'sample_rate': None}
+    _opt_args = {'samples_per_frame': 1, 'frequency': None, 'sideband': None,
+                 'polarization': None, 'dtype':None}
     def __init__(self, source, function, **kwargs):
         self.source = source
         self.input_args = kwargs
-        # The required argument will come from the source.
-        self.req_args = {'shape': None, 'start_time': None,
-                         'sample_rate': None}
-        self.opt_args = {'samples_per_frame': 1, 'frequency': None,
-                         'sideband': None, 'polarization': None, 'dtype':None}
-
         self._prepare_args()
         self._setup_args()
 
-        super(Reader, self).__init__(*(function, self.req_args['shape'],
-                                       self.req_args['start_time'],
-                                       self.req_args['sample_rate']),
-                                     **self.opt_args)
+        super().__init__(*(function, self._req_args['shape'],
+                                       self._req_args['start_time'],
+                                       self._req_args['sample_rate']),
+                                     **self._opt_args)
 
     def _prepare_args(self):
         """This setup function setups up the argrument for initializing the
@@ -80,19 +84,21 @@ class Reader(StreamGenerator):
         """
         input_args_keys = self.input_args.keys()
         source_properties = self.source._properties
-        for rg in self.req_args.keys():
-            if rg not in source_properties:
-                raise ValueError("'{}' is required.".format(rg))
+        for rg in self._req_args.keys():
+            try:
+                self._req_args[rg] = getattr(self.source, rg)
+            except AttributeError as exc:
+                exc.args += ("souce file should define '{}'.".format(rg),)
+                raise exc
 
-            self.req_args[rg] = getattr(self.source, rg)
-
-        for og in self.opt_args.keys():
-            if og in source_properties:
-                self.opt_args[og] = getattr(self.source, og)
-            elif og in input_args_keys:
-                self.opt_args[og] = self.input_args[og]
+        for og in self._opt_args.keys():
+            if og in input_args_keys:
+                self._opt_args[og] = self.input_args[og]
             else:
-                continue
+                try:
+                    self._opt_args[og] = getattr(self.source, og)
+                except AttributeError:
+                    pass
         self._setup_args()
         return
 
@@ -101,30 +107,29 @@ class Reader(StreamGenerator):
 
 
 class HDUReader(Reader):
-    """ This is a class for reading PSRFITS HDUs to scintillometry
-    StreamGenerator style of file handleself.
+    """ Wrapper to treat PSRFITS HDUs as streams.
 
     Parameter
     ---------
-    psrfits_hdus: hdu object
+    psrfits_hdus: hdu
         psrfits HDUs
     """
     def __init__(self, psrfits_hdu):
-        super(HDUReader, self).__init__(psrfits_hdu, None)
+        super().__init__(psrfits_hdu, None)
 
     def _read_frame(self, frame_index):
         res = self.source.read_data_row(frame_index).T
-        return res.reshape((self.samples_per_frame, ) + self.shape[1:])
+        return res.reshape((self.samples_per_frame, ) + self.sample_shape)
 
     def _setup_args(self):
         # Reshape frequency.
-        shape = self.req_args['shape']
+        shape = self._req_args['shape']
         if shape != (0, ):
             #TODO Need to be more generic here.
             freq_shape = shape._replace(npol=1, nbin=1)[1:]
-            self.opt_args['frequency'] = self.opt_args['frequency'].reshape(freq_shape)
+            self._opt_args['frequency'] = self._opt_args['frequency'].reshape(freq_shape)
         else:
-            self.opt_args['frequency']= None
+            self._opt_args['frequency']= None
 
     @property
     def header(self):

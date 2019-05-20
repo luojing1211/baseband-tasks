@@ -7,7 +7,7 @@ import os
 import astropy.units as u
 from astropy.time import Time
 
-from ..psrio import open_read
+from ..io import open_read
 
 test_data = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data')
 

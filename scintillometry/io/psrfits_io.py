@@ -5,7 +5,7 @@ object and psrfits file hdus.
 from .psrfits_fields import *
 from collections import namedtuple
 import astropy.units as u
-from astropy.time import Time
+from astropy.time import Time, TimeDelta
 from astropy.coordinates import SkyCoord
 from astropy.coordinates import Angle, Latitude, Longitude
 from astropy.io import fits
@@ -16,7 +16,11 @@ __all__ = ["PsrfitsHearderHDU", "SubintHDU"]
 
 
 class HDUBase:
-    """This is the HDUBase class that defines some generic API functions
+    """HDUBase class is designed to define the generic API functions.
+    NOTE
+    ----
+    This class is still under the development. Right now it only defines the
+    set_header_card()
     """
     _header_defaults = {}
     def verify(self):
@@ -29,6 +33,7 @@ class HDUBase:
         else:
             self.header.set(key, value, comment)
 
+
 class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
     """HeaderHDU class provides the translator function between baseband-style
     file object and the PSRFITS main header HDU.
@@ -36,6 +41,10 @@ class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
     Parameter
     ---------
     header_hdu : `Pdat.header_hdu`
+
+    NOTE
+    ----
+    the frequency marker is on the center of the channels
     """
     _properties = ('start_time', 'observatory', 'frequency', 'ra', 'dec',
                    'shape', 'sample_rate')
@@ -68,12 +77,9 @@ class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
     @property
     def start_time(self):
         # TODO add location
-        MJD_d_int = np.longdouble(self.header['STT_IMJD']) * u.day
-        MJD_s_int = np.longdouble(self.header['STT_SMJD']) * u.s
-        MJD_s_frac = np.longdouble(self.header['STT_OFFS']) * u.s
-        #NOTE I am assuming PSRFITS's time scale is UTC
-        return Time(MJD_d_int, MJD_s_int + MJD_s_frac, format='mjd',
-                    scale='utc', precision=9)
+        return (Time(self.header['STT_IMJD'], format='mjd', precision=9) +
+                TimeDelta(self.header['STT_SMJD'], self.header['STT_OFFS'],
+                          format='sec', scale='tai'))
 
     @start_time.setter
     def start_time(self, time):
@@ -83,15 +89,22 @@ class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
                              " object.")
         if not time.isscalar:
             raise ValueError("Input time should be a scalar")
-        else:
-            self.header['STT_IMJD'] = int(divmod(time.mjd, 1)[0])
-            day_int = Time(self.header['STT_IMJD'], scale=time.scale,
-                           format=time.format)
-            dt = (time - day_int).to(u.s)
-            int_sec, frac_sec = divmod(dt.value, 1)
-            self.header['STT_SMJD'] = int(int_sec)
-            self.header['STT_OFFS'] = frac_sec
-            self.header['DATE-OBS'] = time.fits
+
+        mjd_int = int(time.mjd)
+        mjd_int = Time(self.header['STT_IMJD'], scale=time.scale,
+                       format=time.format)
+        mjd_frac = (time - Time(mjd_int, scale=time.scale,
+                                format=time.format)).jd
+        if mjd_frac < 0:
+            mjd_int -= 1
+            mjd_frac += 1.
+        mjd_frac = (mjd_frac * u.day).to(u.s)
+        int_sec = int(mjd_frac.value)
+        frac_sec = mjd_frac.value - int_sec
+        self.header['STT_IMJD'] = '{0:05d}'.format(mjd_int)
+        self.header['STT_SMJD'] = '{}'.format(int_sec)
+        self.header['STT_OFFS'] = '{0:17.15f}'.format(frac_sec)
+        self.header['DATE-OBS'] = time.fits
 
     @property
     def shape(self):
@@ -116,20 +129,16 @@ class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
             n_chan = float(self.header['OBSNCHAN'])
             c_chan = float(self.header['OBSFREQ'])
             bw = float(self.header['OBSBW'])
-        except:
+        except Exception:
             return None
         chan_bw = bw / n_chan
-        #NOTE the frequency marker is on the center of the channels
         freq = np.arange(-n_chan / 2, n_chan / 2) * chan_bw + c_chan
         return u.Quantity(freq, u.MHz, copy=False)
 
     @frequency.setter
     def frequency(self, frequency):
         #NOTE this assumes the frequency marker is on the center of the channels
-        if hasattr(frequency, 'unit'):
-            frequency = frequency.to(u.MHz)
-        else:
-            frequency = u.Quantity(frequency, u.MHz, copy=False)
+        frequency = u.Quantity(frequency, u.MHz, copy=False)
         n_chan = len(frequency)
         self.header['OBSNCHAN'] = n_chan
         self.header['OBSBW'] = (frequency[-1] - frequency[0]).value
@@ -195,14 +204,21 @@ class SubintHDU(fits.BinTableHDU, HDUBase):
         for k in self._header_defaults:
             self.header.set(k[0], k[1], k[2])
 
-    def make_columns(self, name):
+    def _make_columns(self, name):
         cols = []
         for cl in self._columns_defaults:
             col = fits.Column()
 
     def verify(self):
-        if self.header['EXTNAME'].replace(' ', '') != "SUBINT":
+        if self.header['EXTNAME'].strip() != "SUBINT":
             raise ValueError("Input HDU is not a SUBINT type.")
+        # Check frequency
+        if 'DAT_FREQ' in self.columns.names:
+            freqs = u.Quantity(self.data['DAT_FREQ'],
+                               u.MHz, copy=False)
+            assert np.isclose(freqs, freqs[0],
+                              atol=np.finfo(float).eps * u.MHz).all(), \
+                "Frequencies are different within one subint rows."
 
     @property
     def mode(self):
@@ -217,9 +233,7 @@ class SubintHDU(fits.BinTableHDU, HDUBase):
 
     @sample_rate.setter
     def sample_rate(self, val):
-        if hasattr(val, 'unit'):
-            val = val.to(u.Hz).value
-        self.header['TBIN'] = 1.0 / val
+        self.header['TBIN'] = (1.0 / val).to_value(u.s)
 
     @property
     def start_time(self):
@@ -325,11 +339,7 @@ class SubintHDU(fits.BinTableHDU, HDUBase):
     def frequency(self):
         if 'DAT_FREQ' in self.columns.names:
             freqs = u.Quantity(self.data['DAT_FREQ'],
-                               u.MHz, copy=False)
-            assert np.isclose(freqs, freqs[0],
-                              atol=np.finfo(float).eps * u.MHz).all(), \
-                "Frequencies are different within one subint rows."
-            freqs = freqs[0]
+                               u.MHz, copy=False)[0]
         else:
             # Get the frequency from the header HDU
             try:
@@ -338,19 +348,20 @@ class SubintHDU(fits.BinTableHDU, HDUBase):
                 freqs = None
         return freqs
 
-    @property
-    def dtype(self):
-        return self.data['DATA'].dtype
-
     @frequency.setter
     def frequency(self, val):
         if 'DAT_FREQ' in self.columns.names:
-            self.data['DAT_FREQ'] = val
-            ## Check frequency length.
+            # Check frequency length.
             assert self.shape.nchan == len(val), \
                 "Input frequency does not match the number of channels in data."
+            self.data['DAT_FREQ'] = val
+
         else:
             self._req_columns['DAT_FREQ']['value'] = val
+
+    @property
+    def dtype(self):
+        return self.data['DATA'].dtype
 
     def read_data_row(self, row_index):
         if row_index >= self.shape[0]:
@@ -362,12 +373,11 @@ class SubintHDU(fits.BinTableHDU, HDUBase):
                                             nbin=1)[-1:1:-1]
         data_scale = row['DAT_SCL'].reshape(new_shape)
         data_off_set = row['DAT_OFFS'].reshape(new_shape)
-        zero_off = np.asarray(0, dtype=self.dtype)
-        if 'ZERO_OFF' in self.header.keys():
-            try:
-                zero_off = np.asarray(self.header['ZERO_OFF'], dtype=self.dtype)
-            except:
-                pass
+        zero_off = np.zeros((), dtype=self.dtype)
+        try:
+            zero_off = np.asarray(self.header['ZERO_OFF'], dtype=self.dtype)
+        except:
+            pass
         result = ((row['DATA'] - zero_off)* data_scale +
                    data_off_set)
         data_wts = np.ones(self.nchan)
