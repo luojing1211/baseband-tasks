@@ -12,29 +12,10 @@ from astropy.io import fits
 import numpy as np
 
 
-__all__ = ["PsrfitsHearderHDU", "SubintHDU"]
+__all__ = ["PsrfitsHearderHDU", "SubintHDU", "HDU_map"]
 
 
-class HDUBase:
-    """HDUBase class is designed to define the generic API functions.
-    NOTE
-    ----
-    This class is still under the development. Right now it only defines the
-    set_header_card()
-    """
-    _header_defaults = {}
-    def verify(self):
-        raise NotImplementError
-
-    def set_header_card(self, key, value=None, comment=None):
-        if value is None and key in self._header_defaults.keys():
-            self.header.set(key, self._header_defaults['key']['value'],
-                            self._header_defaults['key']['comment'])
-        else:
-            self.header.set(key, value, comment)
-
-
-class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
+class PsrfitsHearderHDU(fits.PrimaryHDU):
     """HeaderHDU class provides the translator function between baseband-style
     file object and the PSRFITS main header HDU.
 
@@ -54,7 +35,6 @@ class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
     def __init__(self, header_hdu=None):
         if header_hdu is None:
             super(PsrfitsHearderHDU, self).__init__()
-            self._init_empty()
         else:
             super(PsrfitsHearderHDU, self).__init__(header=header_hdu.header,
                                                     data=header_hdu.data)
@@ -65,14 +45,6 @@ class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
             raise ValueError("The input HDU is not a fits headers HDU.")
         if self.header['FITSTYPE'] != "PSRFITS":
             raise ValueError("The input fits header is not a PSRFITS type.")
-
-    def _init_empty(self):
-        for k, v in self._header_defaults.items():
-            self.header.set(k, v['value'], v['comment'])
-        self.header.add_comment('FITS (Flexible Image Transport System) format'
-                                'is defined in Astronomy and Astrophysics, '
-                                'volume 376, page 359; bibcode:'
-                                ' 2001A&A...376..359H', after='EXTEND')
 
     @property
     def start_time(self):
@@ -105,14 +77,6 @@ class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
         self.header['STT_SMJD'] = '{}'.format(int_sec)
         self.header['STT_OFFS'] = '{0:17.15f}'.format(frac_sec)
         self.header['DATE-OBS'] = time.fits
-
-    @property
-    def shape(self):
-        return (0,)
-
-    @property
-    def sample_rate(self):
-        return 0 * u.Hz
 
     @property
     def observatory(self):
@@ -167,7 +131,7 @@ class PsrfitsHearderHDU(fits.PrimaryHDU, HDUBase):
         return self.header['OBS_MODE']
 
 
-class SubintHDU(fits.BinTableHDU, HDUBase):
+class SubintHDU(fits.BinTableHDU):
     """SubintHDU class provides the translator functions between baseband-style
     file object and the PSRFITS SUBINT HDU.
 
@@ -199,15 +163,6 @@ class SubintHDU(fits.BinTableHDU, HDUBase):
                                             data=subint_hdu.data)
         self.verify()
         self.offset = 0
-
-    def _init_empty(self):
-        for k in self._header_defaults:
-            self.header.set(k[0], k[1], k[2])
-
-    def _make_columns(self, name):
-        cols = []
-        for cl in self._columns_defaults:
-            col = fits.Column()
 
     def verify(self):
         if self.header['EXTNAME'].strip() != "SUBINT":
@@ -380,12 +335,11 @@ class SubintHDU(fits.BinTableHDU, HDUBase):
             pass
         result = ((row['DATA'] - zero_off)* data_scale +
                    data_off_set)
-        data_wts = np.ones(self.nchan)
         if 'DAT_WTS' in self.columns.names:
             data_wts = row['DAT_WTS']
-        wts_shape = self.raw_shape._replace(samples_per_frame=1, nbin=1,
-                                            npol=1)[-1:1:-1]
-        result *= data_wts.reshape(wts_shape)
+            wts_shape = self.raw_shape._replace(samples_per_frame=1, nbin=1,
+                                                npol=1)[-1:1:-1]
+            result *= data_wts.reshape(wts_shape)
         return result
 
 

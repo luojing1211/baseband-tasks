@@ -13,6 +13,36 @@ from collections import defaultdict
 __all__ = ['open_read', 'Reader', 'HDUReader']
 
 
+def open(filename, mode='r', memmap=None):
+    """ Function to open a PSRFITS file.
+
+    Parameter
+    ---------
+    filename : str
+        Input PSRFITS file name.
+    mode : str
+        Open mode, currently, it only supports 'r'/'read' mode
+    memmap : bool, optional
+        Is memory mapping to be used? This value is obtained from the
+        configuration item astropy.io.fits.Conf.use_memmap. Default is True.
+
+    Note
+    ----
+    The current version of open() function only opens and reads one SUBINT HDU
+    and ignores the other types of HDUs. If more than one SUBINT HUD are
+    provided, a RuntimeError will be raised.
+    """
+    if mode == 'r':
+        reader_list = open_read(filename, memmap)
+        # TODO, this need to be changed, if we can support more HDUs.
+        if len(reader_list) != 1:
+            raise RuntimeError("Current reader can only read one SUBINT HDU.")
+        return reader_list[0]
+    else:
+        raise ValueError("Unknown mode '{}'. Currently only 'r' mode are"
+                         " supported.".format(mode))
+
+
 def open_read(filename, memmap=None):
     """ Function to read one PSRFITS file into a list of HDU Readers.
 
@@ -44,7 +74,6 @@ def open_read(filename, memmap=None):
                          " HDU.".format(filename))
     primary_hdu = HDU_map['PRIMARY'](primary[0])
     psrfits_hdus = []
-    psrfits_hdus.append(primary_hdu)
     for k, v in buffer.items():
         for hdu in v:
             psrfits_hdus.append(HDU_map[k](primary_hdu, hdu))
@@ -134,3 +163,8 @@ class HDUReader(Reader):
     @property
     def header(self):
         return self.source.header
+
+    @property
+    def header_hdu(self):
+        # Should this be file header?
+        return self.source.header_hdu

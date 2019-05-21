@@ -1,1 +1,1 @@
-from .core import open_read, HDUReader
+from .core import open, open_read, HDUReader
