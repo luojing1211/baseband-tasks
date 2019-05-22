@@ -131,7 +131,7 @@ class PsrfitsHearderHDU(fits.PrimaryHDU):
         return self.header['OBS_MODE']
 
 
-class SubintHDU(fits.BinTableHDU):
+class SubintHDUBase(fits.BinTableHDU):
     """SubintHDU class provides the translator functions between baseband-style
     file object and the PSRFITS SUBINT HDU.
 
@@ -139,7 +139,7 @@ class SubintHDU(fits.BinTableHDU):
     ---------
     header_hdu : PsrfitsHearderHDU
         The psrfits main header object
-    subint_hdu : HDU oject
+    subint_hdu : HDU object
         The psrfits data HDU.
 
     Note
@@ -157,7 +157,6 @@ class SubintHDU(fits.BinTableHDU):
         self.header_hdu = header_hdu
         if subint_hdu is None:
             super(SubintHDU, self).__init__(name='SUBINT')
-            self._init_empty()
         else:
             super(SubintHDU, self).__init__(header=subint_hdu.header,
                                             data=subint_hdu.data)
@@ -340,6 +339,163 @@ class SubintHDU(fits.BinTableHDU):
             wts_shape = self.raw_shape._replace(samples_per_frame=1, nbin=1,
                                                 npol=1)[-1:1:-1]
             result *= data_wts.reshape(wts_shape)
+        return result
+
+
+class SearchSubint(SubintHDUBase):
+    """SearchSubint class is designed for handling the searching mode PSRFITS
+    Subint HDU.
+
+    Parameter
+    ---------
+    header_hdu : PsrfitsHearderHDU
+        The psrfits main header object
+    search_hdu : HDU object
+        The psrfits HDU.
+    """
+    def __init__(self, header_hdu, search_hdu=None):
+        super().__init__(header_hdu, search_hdu)
+        self.verify()
+
+    def verify(self):
+        if self.header_hdu.obs_mode.upper() != 'SEARCH':
+            raise ValueError("Header HDU is not in the searching mode.")
+        try:
+            # Check NSBLK field
+            nsblk = int(self.header['NSBLK'])
+        except:
+            raise ValueError("Searching mode requires a 'NSBLK' field in the"
+                             " header.")
+        if nsblk <= 1:
+            raise ValueError("Subint HDU is not in the searching mode.")
+
+        try:
+            # Check TBIN field
+            nsblk = int(self.header['TBIN'])
+        except:
+            raise ValueError("Searching mode requires a 'TBIN' field in the"
+                             " header.")
+
+    @property
+    def start_time(self):
+        file_start = self.header_hdu.start_time
+        if "OFFS_SUB" in self.columns.names:
+            subint_times = u.Quantity(self.data['OFFS_SUB'], u.s, copy=False)
+            sample_time = 1.0 / self.sample_rate
+            start_time = (file_start + subint_times[0] -
+                          self.samples_per_frame * sample_time / 2)
+        else:
+            start_time = file_start
+        return start_time
+
+    @start_time.setter
+    def start_time(self, time):
+        # NOTE this sets the start time of the HDU, not the file start time.
+        dt = (time - self.header_hdu.start_time).to(u.s)
+        center_off = dt + 1.0 / self.sample_rate * self.samples_per_frame / 2
+        if "OFFS_SUB" in self.columns.names:
+            first_off = self.data['OFFS_SUB'][0]
+            self.data['OFFS_SUB'] = (self.data['OFFS_SUB'] - first_off +
+                                     center_off)
+        else:
+            self._req_columns['OFFS_SUB']['value'] = center_off
+
+    @property
+    def samples_per_frame(self):
+        return int(self.header['NSBLK'])
+
+    @property
+    def sample_rate(self):
+        sample_time = u.Quantity(self.['TBIN'], u.s)
+        return 1.0 / sample_time
+
+    @property
+    def data_shape(self):
+        # Data are save in the fortran order. Reversed from the header label.
+        d_shape_raw = self.data['DATA'].shape
+        d_shape_header = (self.nbin, self.nchan, self.npol,
+                          self.samples_per_frame)
+        if d_shape_raw != (self.nrow, ) + d_shape_header[::-1]:
+            raise ValueError("Data shape does not match with the header"
+                             " information")
+        d_shape = namedtuple('d_shape', ['nrow', 'nsample', 'npol', 'nchan',
+                                         'nbin'])
+        result  = d_shape(self.nrow,  self.samples_per_frame, self.npol,
+                          self.nchan, self.nbin)
+        return result
+
+
+class PSRSubint(SubintHDUBase):
+    """PSRSubint class is designed for handling the pulsar folding mode PSRFITS
+    Subint HDU.
+
+    Parameter
+    ---------
+    header_hdu : PsrfitsHearderHDU
+        The psrfits main header object
+    psr_subint : HDU object
+        The psrfits subint HDU.
+    """
+    def __init__(self, header_hdu, psr_subint=None):
+        super().__init__(header_hdu, psr_subint)
+        self.verify()
+
+    def verify(self):
+        if self.header_hdu.obs_mode.upper() != 'PSR':
+            raise ValueError("Header HDU is not in the folding mode.")
+        try:
+            # Check NSBLK field
+            nbin = int(self.header['NBIN'])
+        except:
+            raise ValueError("Folding mode requires a 'NBIN' field in the"
+                             " header.")
+        if nbin <= 1:
+            raise ValueError("Subint HDU is not in the folding mode.")
+
+    @property
+    def start_time(self):
+        file_start = self.header_hdu.start_time
+        if "OFFS_SUB" in self.columns.names:
+            subint_times = u.Quantity(self.data['OFFS_SUB'], u.s, copy=False)
+            sample_time = 1.0 / self.sample_rate
+            start_time = (file_start + subint_times[0] -
+                          self.samples_per_frame * sample_time / 2)
+        else:
+            start_time = file_start
+        return start_time
+
+    @start_time.setter
+    def start_time(self, time):
+        # NOTE this sets the start time of the HDU, not the file start time.
+        dt = (time - self.header_hdu.start_time).to(u.s)
+        center_off = dt + 1.0 / self.sample_rate * self.samples_per_frame / 2
+        if "OFFS_SUB" in self.columns.names:
+            first_off = self.data['OFFS_SUB'][0]
+            self.data['OFFS_SUB'] = (self.data['OFFS_SUB'] - first_off +
+                                     center_off)
+        else:
+            self._req_columns['OFFS_SUB']['value'] = center_off
+
+    @property
+    def samples_per_frame(self):
+        return int(np.prod(self.data_shape)/(self.nrow * self.nchan *
+                                             self.npol * self.nbin))
+
+    @property
+    def sample_rate(self):
+        sample_time = u.Quantity(self.['TBIN'], u.s)
+        return 1.0 / sample_time
+
+    @property
+    def data_shape(self):
+        # Data are save in the fortran order. Reversed from the header label.
+        d_shape_raw = self.data['DATA'].shape
+        d_shape_header = (self.nbin, self.nchan, self.npol)
+        if d_shape_raw != (self.nrow, ) + d_shape_header[::-1]:
+            raise ValueError("Data shape does not match with the header"
+                             " information")
+        d_shape = namedtuple('d_shape', ['nrow', 'npol', 'nchan', 'nbin'])
+        result  = d_shape(self.nrow,  self.npol, self.nchan, self.nbin)
         return result
 
 
