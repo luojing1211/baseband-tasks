@@ -12,7 +12,8 @@ from astropy.io import fits
 import numpy as np
 
 
-__all__ = ["PsrfitsHearderHDU", "SubintHDU", "HDU_map"]
+__all__ = ["HDU_map", "PsrfitsHearderHDU", "SubintHDUBase", "PSRSubin",
+           "SearchSubint"]
 
 
 class PsrfitsHearderHDU(fits.PrimaryHDU):
@@ -153,12 +154,21 @@ class SubintHDUBase(fits.BinTableHDU):
     _header_defaults = subint_header
     _req_columns = subint_columns
 
+    def __new__(cls, header_hdu, subint_hdu=None):
+        # Map Subint subclasses
+        mode = header_hdu.obs_mode
+        try:
+            cls = subint_map[mode]
+        except KeyError:
+            raise ValueError("'{}' is not a valid mode.".format(mode))
+        return super(SubintHDUBase, cls).__new__(cls)
+
     def __init__(self, header_hdu, subint_hdu=None):
         self.header_hdu = header_hdu
         if subint_hdu is None:
-            super(SubintHDU, self).__init__(name='SUBINT')
+            super(SubintHDUBase, self).__init__(name='SUBINT')
         else:
-            super(SubintHDU, self).__init__(header=subint_hdu.header,
+            super(SubintHDUBase, self).__init__(header=subint_hdu.header,
                                             data=subint_hdu.data)
         self.verify()
         self.offset = 0
@@ -180,27 +190,17 @@ class SubintHDUBase(fits.BinTableHDU):
 
     @property
     def sample_rate(self):
-        # We assume the sample rate are the same for all the rows.
-        sample_time = u.Quantity(self.data[0]['TSUBINT'] /
-                                 self.samples_per_frame, u.s)
-        return 1.0 / sample_time
+        raise NotImplementedError
 
     @sample_rate.setter
     def sample_rate(self, val):
-        self.header['TBIN'] = (1.0 / val).to_value(u.s)
+        raise NotImplementedError
 
     @property
     def start_time(self):
         # NOTE should we get the start time for each raw, in case the time gaps
         # in between the rows
         file_start = self.header_hdu.start_time
-        if "OFFS_SUB" in self.columns.names:
-            subint_times = u.Quantity(self.data['OFFS_SUB'], u.s, copy=False)
-            sample_time = 1.0 / self.sample_rate
-            start_time = (file_start + subint_times[0] -
-                          self.samples_per_frame / 2 * sample_time)
-        else:
-            start_time = file_start
         return start_time
 
     @start_time.setter
@@ -261,25 +261,7 @@ class SubintHDUBase(fits.BinTableHDU):
 
     @property
     def data_shape(self):
-        # Data are save in the fortran order. Reversed from the header label.
-        d_shape_raw = self.data['DATA'].shape
-        if self.mode == "SEARCH":
-            d_shape_header = (self.nbin, self.nchan, self.npol,
-                              self.samples_per_frame)
-        else:
-            d_shape_header = (self.nbin, self.nchan, self.npol)
-        if d_shape_raw != (self.nrow, ) + d_shape_header[::-1]:
-            raise ValueError("Data shape does not match with the header"
-                             " information")
-        if self.mode == "SEARCH":
-            d_shape = namedtuple('d_shape', ['nrow', 'nsample', 'npol', 'nchan',
-                                             'nbin'])
-            result  = d_shape(self.nrow,  self.samples_per_frame, self.npol,
-                              self.nchan, self.nbin)
-        else:
-            d_shape = namedtuple('d_shape', ['nrow', 'npol', 'nchan', 'nbin'])
-            result  = d_shape(self.nrow,  self.npol, self.nchan, self.nbin)
-        return result
+        raise NotImplementedError
 
     @property
     def polarization(self):
@@ -406,7 +388,7 @@ class SearchSubint(SubintHDUBase):
 
     @property
     def sample_rate(self):
-        sample_time = u.Quantity(self.['TBIN'], u.s)
+        sample_time = u.Quantity(self.header['TBIN'], u.s)
         return 1.0 / sample_time
 
     @property
@@ -483,7 +465,8 @@ class PSRSubint(SubintHDUBase):
 
     @property
     def sample_rate(self):
-        sample_time = u.Quantity(self.['TBIN'], u.s)
+        sample_time = u.Quantity(self.data[0]['TSUBINT'] /
+                                 self.samples_per_frame, u.s)
         return 1.0 / sample_time
 
     @property
@@ -500,4 +483,6 @@ class PSRSubint(SubintHDUBase):
 
 
 HDU_map = {'PRIMARY': PsrfitsHearderHDU,
-           'SUBINT': SubintHDU}
+           'SUBINT': SubintHDUBase}
+
+subint_map = {'PSR': PSRSubint, 'SEARCH': SearchSubint}
