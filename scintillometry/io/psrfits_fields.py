@@ -4,8 +4,8 @@ https://www.atnf.csiro.au/research/pulsar/psrfits_definition/PsrfitsDocumentatio
 """
 
 main_header = {"HDRVER": {"value": "6.1",
-   "comment": "Header version",
-   "description": ""},
+                          "comment": "Header version",
+                          "description": ""},
  "FITSTYPE": {"value": "PSRFITS",
    "comment": "FITS definition for pulsar datafiles",
    "description": ""},
