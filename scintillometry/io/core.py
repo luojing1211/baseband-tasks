@@ -4,7 +4,7 @@ format.
 
 
 from ..generators import StreamGenerator
-from ..base import BaseTaskBase
+from ..base import Base
 from astropy.io import fits
 from .psrfits_io import HDU_map
 from astropy import log
@@ -85,7 +85,7 @@ def open_read(filename, memmap=None):
     return readers
 
 
-class Reader(StreamGenerator):
+class Reader(Base):
     """Reader class defines the common API for the Read sub_class.
 
     Parameter
@@ -96,16 +96,20 @@ class Reader(StreamGenerator):
     _req_args = {'shape': None, 'start_time': None, 'sample_rate': None}
     _opt_args = {'samples_per_frame': 1, 'frequency': None, 'sideband': None,
                  'polarization': None, 'dtype':None}
-    def __init__(self, source, function, **kwargs):
+    def __init__(self, source,):
         self.source = source
+        shape = None
         self.input_args = kwargs
         self._prepare_args()
         self._setup_args()
 
-        super().__init__(*(function, self._req_args['shape'],
-                                       self._req_args['start_time'],
-                                       self._req_args['sample_rate']),
-                                     **self._opt_args)
+        super().__init__(self._req_args['shape'], self._req_args['start_time'],
+                         self._req_args['sample_rate'],
+                         samples_per_frame=self._opt_args['samples_per_frame'],
+                         frequency=self._opt_args['frequency'],
+                         sideband=self._opt_args['sideband'],
+                         polarization=self._opt_args['polarization'],
+                         dtype=self._opt_args['dtype'])
 
     def _prepare_args(self):
         """This setup function setups up the argrument for initializing the
@@ -132,25 +136,6 @@ class Reader(StreamGenerator):
         return
 
     def _setup_args(self):
-        pass
-
-
-class HDUReader(Reader):
-    """ Wrapper to treat PSRFITS HDUs as streams.
-
-    Parameter
-    ---------
-    psrfits_hdus: hdu
-        psrfits HDUs
-    """
-    def __init__(self, psrfits_hdu):
-        super().__init__(psrfits_hdu, None)
-
-    def _read_frame(self, frame_index):
-        res = self.source.read_data_row(frame_index).T
-        return res.reshape((self.samples_per_frame, ) + self.sample_shape)
-
-    def _setup_args(self):
         # Reshape frequency.
         shape = self._req_args['shape']
         if shape != (0, ):
@@ -160,6 +145,10 @@ class HDUReader(Reader):
         else:
             self._opt_args['frequency']= None
 
+    def _read_frame(self, frame_index):
+        res = self.source.read_data_row(frame_index).T
+        return res.reshape((self.samples_per_frame, ) + self.sample_shape)
+
     @property
     def header(self):
         return self.source.header
@@ -168,3 +157,6 @@ class HDUReader(Reader):
     def header_hdu(self):
         # Should this be file header?
         return self.source.header_hdu
+
+    def _setup_args(self):
+        pass
