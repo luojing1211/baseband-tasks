@@ -108,7 +108,7 @@ def parse_line(line):
 
 
 def ext2hdu(extension):
-    hdu_parts = {'card': [], 'column': [], 'comment': []}
+    hdu_parts = {'card': [], 'column': {}, 'comment': []}
     hdu = None
     column_map = {'TTYPE': 'name', 'TFORM': 'format', 'TUNIT': 'unit',
                   'TDIM': 'dim'}
@@ -131,7 +131,10 @@ def ext2hdu(extension):
                 cur_entry['value'] += value
             else:
                 # record the current entry and init new entry
-                hdu_parts[cur_entry['type']].append(cur_entry)
+                if cur_entry['type'] == 'column':  # The column part is a dict
+                    hdu_parts[cur_entry['type']][cur_entry['name'][0]] = cur_entry
+                else:
+                    hdu_parts[cur_entry['type']].append(cur_entry)
                 last_entry = cur_entry
                 cur_entry = {'name': key, 'value': value, 'type': line_type,
                              'after': last_entry['name'], 'description': ''}
@@ -142,7 +145,10 @@ def ext2hdu(extension):
                     cur_entry[entry_key] = (value, comment)
             else:
                 # Record the last entry and open a new entry for column
-                hdu_parts[cur_entry['type']].append(cur_entry)
+                if cur_entry['type'] == 'column':  # The column part is a dict
+                    hdu_parts[cur_entry['type']][cur_entry['name'][0]] = cur_entry
+                else:
+                    hdu_parts[cur_entry['type']].append(cur_entry)
                 last_entry = cur_entry
                 cur_entry = {'name': None, 'format': None, 'unit': None,
                              'dim': None, 'description': '', 'type': line_type}
@@ -151,7 +157,10 @@ def ext2hdu(extension):
 
         elif line_type == 'card':
             if cur_entry != {}:
-                hdu_parts[cur_entry['type']].append(cur_entry)
+                if cur_entry['type'] == 'column':  # The column part is a dict
+                    hdu_parts[cur_entry['type']][cur_entry['name'][0]] = cur_entry
+                else:
+                    hdu_parts[cur_entry['type']].append(cur_entry)
             last_entry = cur_entry
             cur_entry = {'name': key, 'value': value, 'unit': unit,
                          'comment': comment, 'description': '',

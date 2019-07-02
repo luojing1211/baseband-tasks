@@ -20,7 +20,10 @@ __all__ = ["HDU_map", "HDUWrapper", "PSRFITSPrimaryHDU",
 class HDUWrapper:
     def __init__(self, hdu=None, verify=True, hdu_type=None):
         if hdu is None:
-            hdu = self.init_hdu(hdu_type)
+            # TODO give template to all cases??
+            target_hdu, self.hdu_parts = hdu_templates[hdu_type]
+            hdu = target_hdu()
+            hdu = self.init_hdu_header(hdu)
             verify = False
         self.hdu = hdu
         if verify:
@@ -29,21 +32,33 @@ class HDUWrapper:
     def verify(self):
         assert isinstance(self.header, fits.Header)
 
-    def init_hdu(self, hdu_name):
-        target_hdu, hdu_parts = hdu_templates[hdu_name]
-        hdu = target_hdu()
+    def init_hdu_header(self, hdu):
         # Add header card.
         # HDU part should always have cards.
-        for card in hdu_parts['card']:
-            hdu.header.set(card['name'], value=card['value'], comment=card['comment'])
+        for card in self.hdu_parts['card']:
+            hdu.header.set(card['name'], value=card['value'],
+                           comment=card['comment'])
         # add comment cards
         # TODO comment need a little bit tuning
-        if hdu_parts['comment'] != []:
-            for ce in hdu_parts['comment']:
-                hdu.header.set(ce['name'], value=' '.join(ce['value'].split()),
-                               after=ce['after'])
-        # TODO add column
+        if self.hdu_parts['comment'] != []:
+            for cmt in self.hdu_parts['comment']:
+                hdu.header.set(cmt['name'], value=' '.join(cmt['value'].split()),
+                               after=cmt['after'])
+        # The column will be added when give data
         return hdu
+
+    def add_column(self, key, array, from_template=True, column_entry=None):
+        if from_template:
+            try:
+                column_entry = self.hdu_parts[key]
+            except KeyError:
+                raise ValueError("Column key '{}' is not in the template list.")
+        else:
+            if column_entry is None:
+                raise ValueError("Column entry has to be provided if"
+                                 " 'from_template' is 'False'.")
+        
+
 
     @property
     def header(self):
