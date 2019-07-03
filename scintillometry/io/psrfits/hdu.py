@@ -57,7 +57,7 @@ class HDUWrapper:
             if column_entry is None:
                 raise ValueError("Column entry has to be provided if"
                                  " 'from_template' is 'False'.")
-        
+
 
 
     @property
@@ -263,6 +263,18 @@ class SubintHDU(HDUWrapper):
             "Input HDU is not a SUBINT type."
         assert isinstance(self.primary_hdu, PSRFITSPrimaryHDU), \
             "Primary HDU needs to be a PSRFITSPrimaryHDU instance."
+
+    def init_hdu_data(self):
+        for dim in ['nrow', 'nchan', 'nopl', 'nbin']:
+            try:
+                _ = int(getattr(self, dim))
+            except:
+                raise ValueError("'{}' is not set properly.")
+
+        _data = []
+        _dtype = []
+        for col, entry in self.hdu_parts['column'].items():
+            col
 
     @property
     def mode(self):
