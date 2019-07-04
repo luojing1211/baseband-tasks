@@ -15,6 +15,9 @@ from .psrfits_htm_parser import hdu_templates
 
 __all__ = ["HDU_map", "HDUWrapper", "PSRFITSPrimaryHDU",
            "SubintHDU", "PSRSubintHDU"]
+dim_rex = re.compile(r'[0-9]')
+N_res = re.compile(r'N[A-Z]+')
+
 
 
 class HDUWrapper:
@@ -60,14 +63,21 @@ class HDUWrapper:
 
     def get_column_dim(self, column_entry):
         fmt = column_entry['format']
+        if column_entry['dim'] is None:
+            column_entry['dim'] = (tuple(), '')
+        column_entry['']
         m = re.search(dim_rex, fmt[0]).groups()[0]
         if m is not None:
-            if column_entry['dim'] is None:
-                column_entry['dim'] = (int(m), '')
-            else:
-                column_entry['dim'][0] = int(m)
+            column_entry['dim'][0] = (int(m),)
         else:
-            
+            m = re.fineall(N_res, fmt[1])
+            if m != []:
+                shape = tuple()
+                for label in m:
+                    label_len = getattr(self, label.lower())
+                    shape += (label_len,)
+                column_entry['dim'][0] = shape
+        return column_entry
 
     @property
     def header(self):
@@ -283,7 +293,7 @@ class SubintHDU(HDUWrapper):
         _data = []
         _dtype = []
         for col, entry in self.hdu_parts['column'].items():
-            col
+            entry = self.get_
 
     @property
     def mode(self):

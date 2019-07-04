@@ -11,7 +11,7 @@ psrfits_doc_path = get_pkg_data_filename('../../data/PsrfitsDocumentation.html')
 fits_table_map = {'BINTABLE': fits.BinTableHDU,
                   'PRIMARY': fits.PrimaryHDU}
 unit_rex = re.compile(r'\[(.+)\]')
-dim_rex = re.compile(r'[0-9]')
+
 
 class MyHTMLParser(HTMLParser):
     section = False
@@ -105,7 +105,7 @@ def parse_line(line):
                     pass
 
     return line_type, key, value, comment, unit
-    
+
 def ext2hdu(extension):
     hdu_parts = {'card': [], 'column': {}, 'comment': []}
     hdu = None
