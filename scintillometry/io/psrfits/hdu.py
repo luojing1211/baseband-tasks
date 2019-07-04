@@ -58,7 +58,16 @@ class HDUWrapper:
                 raise ValueError("Column entry has to be provided if"
                                  " 'from_template' is 'False'.")
 
-
+    def get_column_dim(self, column_entry):
+        fmt = column_entry['format']
+        m = re.search(dim_rex, fmt[0]).groups()[0]
+        if m is not None:
+            if column_entry['dim'] is None:
+                column_entry['dim'] = (int(m), '')
+            else:
+                column_entry['dim'][0] = int(m)
+        else:
+            
 
     @property
     def header(self):
