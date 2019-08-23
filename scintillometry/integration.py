@@ -376,6 +376,7 @@ class Fold(Integrate):
         self._shape = (self._shape[0], n_phase) + ih.sample_shape
         self.n_phase = n_phase
         self.phase = phase
+        self._ih_sample_index = np.ndindex(self.ih.sample_shape)
 
     def _read_frame(self, frame_index):
         # Before calling the underlying implementation, get the start time in
@@ -399,8 +400,18 @@ class Fold(Integrate):
                        self.n_phase).astype(int)
         # Do the actual folding, adding the data to the sums and counts.
         # TODO: np.add.at is not very efficient; replace?
-        np.add.at(self._frame['data'], (sample_index, phase_index), raw)
-        np.add.at(self._frame['count'], (sample_index, phase_index), 1)
+        if self.average:
+            self._frame['count'][sample_index] = np.bincount(phase_index,
+            minlength=self.n_phase).reshape(self._frame['count'].shape[1:])
+
+        for index in self._ih_sample_index:
+            raw_slice = np.index_exp[:] + index
+            res_slice = np.index_exp[sample_index,:] + index
+            self._frame['data'][res_slice] = np.bincount(phase_index,
+                                                         raw[raw_slice],
+                                                         minlength=self.n_phase)
+        # np.add.at(self._frame['data'], (sample_index, phase_index), raw)
+        # np.add.at(self._frame['count'], (sample_index, phase_index), 1)
 
 
 class Stack(BaseTaskBase):
